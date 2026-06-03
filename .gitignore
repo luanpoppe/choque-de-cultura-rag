@@ -21,6 +21,7 @@ coverage
 
 # IDEs and editors
 /.idea
+.obsidian/
 .project
 .classpath
 .c9/
