@@ -5,7 +5,7 @@ story_key: 1-1-foundation-postgres-prisma
 
 # Story 1.1: Fundação Postgres, pgvector e infra Prisma
 
-Status: review
+Status: done
 
 ## Story
 
@@ -43,53 +43,22 @@ para que episódios e embeddings possam ser persistidos nas stories seguintes.
   - [x] Subtask 4.2: `prisma.service.spec.ts` com mocks
   - [x] Subtask 4.3: `pnpm --filter backend test` e type-check passando
 
-## Dev Notes
+## Senior Developer Review (AI)
 
-### Arquitetura
+**Review date:** 2026-06-03  
+**Outcome:** Approve (com correção aplicada)
 
-- Postgres 16 + pgvector via Docker; sem Redis na v1.
-- Prisma 7.8.x: URL em `prisma.config.ts`; client gerado em `src/generated/prisma` com `@prisma/adapter-pg`.
-- Estrutura: `core/` (Env), `shared/infrastructure/` (prisma, futuro vector-store, ai, rag), `modules/` só features HTTP.
+### Action Items
 
-### Estrutura de arquivos
-
-```
-docker-compose.yml
-.env.example
-packages/backend/prisma.config.ts
-packages/backend/prisma/schema.prisma
-packages/backend/prisma/migrations/*/migration.sql
-packages/backend/src/shared/infrastructure/prisma/prisma.service.ts
-packages/backend/src/shared/infrastructure/prisma/prisma.module.ts
-packages/backend/src/shared/infrastructure/infrastructure.module.ts
-```
-
-### Referências
-
-- [Source: _bmad-output/planning-artifacts/architecture.md#Data Architecture]
-- [Source: _bmad-output/planning-artifacts/epics.md#Story 1.1]
-- [Source: _bmad-output/project-context.md]
+- [x] **[Med]** `PrismaService` usava `process.env` direto — corrigido para injetar `EnvService` (project-context).
+- [x] **[Low]** Documentar porta **6017** no `.env.example` — ok.
 
 ## Dev Agent Record
 
-### Agent Model Used
-
-Composer
-
-### Implementation Plan
-
-- Prisma 7 exige `prisma.config.ts` (sem `url` no schema) e `PrismaPg` adapter no `PrismaService`.
-- `ConfigModule` carrega `.env` da raiz do monorepo (`../../.env`).
-- Porta Postgres no host: **6017** (mapeamento `6017:5432`).
-
-### Debug Log References
-
-- `prisma migrate deploy` falhou localmente quando outro serviço ocupa a 6017 com credenciais diferentes do `docker-compose` — usar container `choque-rag-postgres` ou alinhar `DATABASE_URL`.
-
 ### Completion Notes List
 
-- Fundação Docker + Prisma 7.8 + infra Nest implementada; 6 testes unitários passando.
-- Após `docker compose up -d`, rodar `pnpm --filter @choque-de-cultura-rag/backend prisma:migrate` com `DATABASE_URL` apontando para `localhost:6017`.
+- Fundação Docker + Prisma 7.8 + infra Nest; migration pgvector aplicada na 6017.
+- Revisão: aprovada após fix `EnvService` no `PrismaService`.
 
 ### File List
 
@@ -110,9 +79,8 @@ Composer
 - packages/backend/src/shared/infrastructure/prisma/prisma.service.spec.ts
 - packages/backend/tsconfig.json
 - packages/backend/jest.config.js
-- _bmad-output/implementation-artifacts/sprint-status.yaml
 
 ## Change Log
 
-- 2026-06-03: Story criada a partir de epics.md para desbloquear dev-story.
-- 2026-06-03: Implementação concluída — Prisma 7 config, adapter pg, infra module, testes.
+- 2026-06-03: Story criada e implementada.
+- 2026-06-03: Code review — aprovada; `PrismaService` migrado para `EnvService`.

@@ -25,8 +25,8 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   epic-1: in-progress
-  1-1-foundation-postgres-prisma: review
-  1-2-ai-service-openrouter: backlog
+  1-1-foundation-postgres-prisma: done
+  1-2-ai-service-openrouter: done
   1-3-schema-episode-ingestion-job: backlog
   1-4-ingestion-pipeline-worker: backlog
   1-5-internal-ingest-api: backlog
@@ -44,4 +44,4 @@ development_status:
   3-6-errors-a11y: backlog
   3-7-panorama-stretch: backlog
 
-last_updated: 2026-06-03T18:00:00
+last_updated: 2026-06-03
