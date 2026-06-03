@@ -1,0 +1,13 @@
+{
+  "name": "choque-de-cultura-rag",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter \"./packages/backend\" --filter \"./packages/frontend\" --parallel run dev"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}
