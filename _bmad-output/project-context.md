@@ -34,7 +34,7 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 | HTTP | axios | ^1.7.9 |
 | Toasts | react-hot-toast | layout root |
 | Testes | Jest + SWC | `@swc/jest`, `*.spec.ts` |
-| **IA (obrigatório)** | `@luanpoppe/ai` | versão mais recente — **ainda não instalado** |
+| **IA (obrigatório)** | `@luanpoppe/ai` | ^1.1.5 — usar só via `AiService` em `@infrastructure/ai` |
 
 **Dev:** `pnpm dev` na raiz sobe backend + frontend em paralelo.
 
@@ -77,7 +77,7 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 **IA / RAG (a implementar)**
 
 - **Toda** integração de IA via `@luanpoppe/ai` — não chamar OpenAI/Gemini direto.
-- Env vars `GEMINI_API_KEY`/`OPENAI_API_KEY` no scaffold são legado — migrar para config da `@luanpoppe/ai`.
+- IA via **OpenRouter** (`OPENROUTER_API_KEY`): chat, embeddings e Whisper/STT. `OPENAI_API_KEY` não é usada.
 - Respostas RAG devem incluir **vídeo + timestamp** (título, URL, momento).
 - Guardrails: agente responde **somente** sobre Choque de Cultura; off-topic → recusa educada.
 - Ingestão v1: episódios **mais antigos** primeiro (~5–10).
