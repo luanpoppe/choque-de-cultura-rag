@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Key Screen — Chat vazio · Modern Soft</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(160deg, #fff1f2 0%, #fafafa 45%, #fff7ed 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #0f172a;
+    }
+    .shell {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(20px);
+      border-radius: 28px;
+      box-shadow: 0 4px 6px rgba(15,23,42,.04), 0 24px 48px rgba(225,29,72,.08);
+      border: 1px solid rgba(255,255,255,.9);
+      overflow: hidden;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px 12px;
+    }
+    .brand {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+    }
+    .brand em {
+      font-style: normal;
+      font-weight: 600;
+      color: #e11d48;
+    }
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      border: none;
+      background: #fff1f2;
+      color: #be123c;
+      font-size: 16px;
+      cursor: default;
+    }
+    .hero {
+      padding: 8px 28px 28px;
+      text-align: center;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #be123c;
+      background: #ffe4e6;
+      padding: 6px 12px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 10px;
+      color: #0f172a;
+    }
+    .sub {
+      font-size: 15px;
+      line-height: 1.55;
+      color: #64748b;
+      margin-bottom: 24px;
+    }
+    .onboarding {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #f43f5e, #e11d48);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(225,29,72,.25);
+      margin-bottom: 12px;
+      cursor: default;
+    }
+    .or { font-size: 13px; color: #94a3b8; }
+    .composer { padding: 16px 20px 24px; }
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fafafa;
+      border: 1px solid #fecdd3;
+      border-radius: 999px;
+      padding: 6px 6px 6px 20px;
+    }
+    .input-row:focus-within {
+      border-color: #fda4af;
+      box-shadow: 0 0 0 3px rgba(244,63,94,.15);
+    }
+    .input-row input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 15px;
+      color: #0f172a;
+      outline: none;
+    }
+    .input-row input::placeholder { color: #94a3b8; }
+    .send {
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      border: none;
+      background: #e11d48;
+      color: #fff;
+      font-size: 18px;
+    }
+    footer {
+      text-align: center;
+      padding-bottom: 16px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    footer a { color: #e11d48; text-decoration: none; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">Choque <em>RAG</em></div>
+      <button class="icon-btn" type="button" title="Tema">🌙</button>
+    </header>
+    <div class="hero">
+      <span class="pill">Choque de Cultura</span>
+      <h1>O que você quer encontrar no podcast?</h1>
+      <p class="sub">Pergunte em português — a gente aponta o episódio e o minuto exato no YouTube.</p>
+      <button class="onboarding" type="button">Nunca ouvi Choque de Cultura — ver exemplos</button>
+      <p class="or">ou escreva abaixo</p>
+    </div>
+    <div class="composer">
+      <div class="input-row">
+        <input type="text" placeholder="Quando falaram de Dune?" />
+        <button class="send" type="button">↑</button>
+      </div>
+    </div>
+    <footer><a href="#">GitHub</a> · demo portfólio</footer>
+  </div>
+</body>
+</html>
