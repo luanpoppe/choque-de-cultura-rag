@@ -26,16 +26,18 @@
     "prisma:migrate:dev": "prisma migrate dev"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.8.0",
-    "@prisma/client": "7.8.0",
-    "dotenv": "^16.4.7",
-    "pg": "^8.13.3",
+    "@langchain/openai": "^1.2.3",
+    "@luanpoppe/ai": "^1.1.5",
     "@nestjs/common": "^11.1.24",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.1.24",
     "@nestjs/platform-express": "^11.1.24",
     "@nestjs/swagger": "^11.2.5",
+    "@prisma/adapter-pg": "7.8.0",
+    "@prisma/client": "7.8.0",
+    "dotenv": "^16.4.7",
     "nestjs-zod": "^5.1.1",
+    "pg": "^8.13.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^4.3.5"
