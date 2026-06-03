@@ -24,7 +24,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@core/*": ["src/core/*"],
-      "@modules/*": ["src/modules/*"]
+      "@modules/*": ["src/modules/*"],
+      "@infrastructure/*": ["src/shared/infrastructure/*"]
     }
   },
   "include": ["src/**/*", "test/**/*", "jest.config.js"]

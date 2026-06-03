@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: choque-rag-postgres
+    restart: unless-stopped
+    ports:
+      - "6017:5432"
+    environment:
+      POSTGRES_USER: choque
+      POSTGRES_PASSWORD: choque
+      POSTGRES_DB: choque_rag
+    volumes:
+      - choque_rag_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U choque -d choque_rag"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  choque_rag_pgdata:
