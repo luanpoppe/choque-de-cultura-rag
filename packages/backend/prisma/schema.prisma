@@ -7,4 +7,60 @@ datasource db {
   provider = "postgresql"
 }
 
-// Modelos Episode, Chunk e IngestionJob entram na story 1.3.
+/// Status de uma execução de ingestão em lote.
+enum IngestionJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// Lote de ingestão disparado pelo operador (POST /api/internal/ingest).
+model IngestionJob {
+  id           String             @id @default(uuid()) @db.Uuid
+  status       IngestionJobStatus @default(PENDING)
+  successCount Int                @default(0) @map("success_count")
+  failureCount Int                @default(0) @map("failure_count")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  startedAt    DateTime?          @map("started_at")
+  completedAt  DateTime?          @map("completed_at")
+
+  episodes Episode[]
+
+  @@map("ingestion_jobs")
+}
+
+/// Episódio do YouTube indexado (idempotência por youtubeVideoId).
+model Episode {
+  id             String    @id @default(uuid()) @db.Uuid
+  youtubeVideoId String    @unique @map("youtube_video_id")
+  title          String
+  watchUrl       String    @map("watch_url")
+  durationSec    Int?      @map("duration_sec")
+  publishedAt    DateTime? @map("published_at")
+  lastIngestError String?  @map("last_ingest_error")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  ingestionJobId String?       @map("ingestion_job_id") @db.Uuid
+  ingestionJob   IngestionJob? @relation(fields: [ingestionJobId], references: [id], onDelete: SetNull)
+  chunks         Chunk[]
+
+  @@index([ingestionJobId])
+  @@map("episodes")
+}
+
+/// Trecho transcrito com embedding para busca semântica (pgvector).
+model Chunk {
+  id        String                      @id @default(uuid()) @db.Uuid
+  episodeId String                      @map("episode_id") @db.Uuid
+  episode   Episode                     @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  text      String
+  startSec  Int                         @map("start_sec")
+  endSec    Int                         @map("end_sec")
+  embedding Unsupported("vector(1536)")
+  createdAt DateTime                    @default(now()) @map("created_at")
+
+  @@index([episodeId])
+  @@map("chunks")
+}
