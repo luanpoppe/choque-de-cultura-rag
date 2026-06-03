@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { SwaggerModule } from '@nestjs/swagger';
 import { ZodValidationPipe, cleanupOpenApiDoc } from 'nestjs-zod';
 import { createSwaggerConfig } from './core/swagger.config';
+import { EnvService } from './core/env.service';
 import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
@@ -17,6 +18,14 @@ async function bootstrap() {
   // Configuração do Swagger
   const config = createSwaggerConfig();
   const document = SwaggerModule.createDocument(app, config);
+  const envService = app.get(EnvService);
+  if (!envService.getEnvs().SWAGGER_EXPOSE_INTERNAL) {
+    for (const path of Object.keys(document.paths ?? {})) {
+      if (path.startsWith('/api/internal')) {
+        delete document.paths[path];
+      }
+    }
+  }
   SwaggerModule.setup('api', app, cleanupOpenApiDoc(document));
   logger.log('Swagger enabled');
 

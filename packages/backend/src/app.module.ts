@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { CoreModule } from './core/core.module';
 import { InfrastructureModule } from '@infrastructure/infrastructure.module';
+import { IngestionModule } from '@modules/ingestion/ingestion.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { InfrastructureModule } from '@infrastructure/infrastructure.module';
     }),
     CoreModule,
     InfrastructureModule,
+    IngestionModule,
   ],
   controllers: [AppController],
 })

@@ -1,6 +1,7 @@
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: 'src',
+  setupFiles: ['<rootDir>/../test/jest.env-setup.ts'],
   testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+\\.(t|j)s$': ['@swc/jest'],

@@ -1,8 +1,7 @@
-import { Global, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import z from 'zod';
 
 @Injectable()
-@Global()
 export class EnvService {
   getEnvs() {
     const envSchema = z.object({
@@ -26,8 +25,18 @@ export class EnvService {
         .string()
         .min(1)
         .optional()
-        .default('openai/whisper-large-v3'),
+        .default('openai/whisper-1'),
       GEMINI_API_KEY: z.string().min(1).optional(),
+      YTDLP_BIN: z.string().min(1).optional(),
+      INGEST_TEMP_DIR: z.string().min(1).optional(),
+      INGEST_SECRET: z.string().min(1),
+      CHOQUE_YOUTUBE_CHANNEL_URL: z.string().url().optional(),
+      INGEST_DEFAULT_LIMIT: z.coerce.number().int().min(1).max(50).optional().default(10),
+      SWAGGER_EXPOSE_INTERNAL: z
+        .enum(['true', 'false'])
+        .optional()
+        .default('false')
+        .transform((v) => v === 'true'),
     });
     const { data, error } = envSchema.safeParse(process.env);
     if (error) throw new Error(`Invalid env vars: ${error.message}`);
