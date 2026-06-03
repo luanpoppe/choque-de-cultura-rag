@@ -1,5 +1,8 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5, 6]
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
+lastStep: 8
+status: complete
+completedAt: 2026-06-03
 inputDocuments:
   - prds/prd-choque-de-cultura-rag-2026-06-03/prd.md
   - prds/prd-choque-de-cultura-rag-2026-06-03/addendum.md
@@ -121,7 +124,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 **Critical (bloqueiam implementação):**
 
 - Postgres + pgvector + Prisma 7.8.0
-- Módulos de domínio no Nest (`ingestion`, `chat`, `episodes`, `vector` / `rag`)
+- **Camadas backend:** `modules/` (features HTTP) + `shared/infrastructure/` (Prisma, vector store, AI/RAG) — ver Structure Patterns
 - Contrato API de chat com `citations[]`
 - Proteção de ingestão (`X-Ingest-Secret`)
 - `@luanpoppe/ai` para embeddings, geração e roteamento Whisper
@@ -234,7 +237,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 **Sequência sugerida de implementação:**
 
 1. `docker-compose` + Prisma schema/migrations (pgvector)
-2. `PrismaModule` + repositórios no Nest
+2. `shared/infrastructure` (Prisma, vector-store, ai, rag) + `InfrastructureModule` global
 3. `@luanpoppe/ai` + `EnvService` vars
 4. Pipeline ingestão (job + worker in-process)
 5. Vector search (TypedSQL) + agente RAG
@@ -278,18 +281,41 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 
 ### Structure Patterns
 
+**Backend — regra de camadas (2026-06-03 — Luan):**
+
+| Camada | Pasta | O que entra |
+|---|---|---|
+| **Core** | `core/` | `EnvService`, guards globais, Swagger — já existente |
+| **Infrastructure** | `shared/infrastructure/` | Prisma, persistência, vector search, clientes IA, orquestração RAG — **sem controllers HTTP** |
+| **Application / features** | `modules/` | Casos de uso expostos via API: ingestão, chat, onboarding |
+
+**Dependência:** `modules/*` → `shared/infrastructure/*` → `core/*` (nunca o inverso).
+
+**Path aliases (adicionar no `tsconfig` do backend):**
+
+- `@modules/*` → `src/modules/*` (já existe)
+- `@infrastructure/*` → `src/shared/infrastructure/*` (novo)
+- `@core/*` → `src/core/*` (já existe)
+
 **Backend (`packages/backend/src/`):**
 
 ```
-modules/
-  prisma/           # PrismaService global
-  ingestion/        # pipeline, job worker, controllers internal
-  episodes/         # metadados YouTube
-  chunks/           # persistência + vector search (TypedSQL)
-  rag/              # agente, retrieval, guardrails
-  chat/             # ChatController, DTOs Zod
-  onboarding/       # sugestões do acervo
-core/               # EnvService, guards compartilhados (existente)
+core/
+  env.service.ts
+  guards/
+    ingest-secret.guard.ts
+shared/
+  infrastructure/
+    prisma/              # PrismaModule, PrismaService
+    vector-store/        # ChunkRepository, TypedSQL similarity (ex-“chunks”)
+    ai/                  # wrapper @luanpoppe/ai (embed, whisper, completion)
+    rag/                 # retrieval, montagem de prompt, guardrails (usa ai + vector-store)
+    infrastructure.module.ts   # exporta providers para features
+modules/                 # somente domínio / HTTP
+  ingestion/             # pipeline, job worker, POST /api/internal/ingest
+  episodes/              # metadados YouTube (ou subpasta de ingestion se preferir fundir depois)
+  chat/                  # ChatController, DTOs, orquestra RagService
+  onboarding/            # sugestões do acervo
 ```
 
 - DTOs Zod: `modules/<feature>/dto/*.dto.ts` com `createZodDto`
@@ -349,7 +375,8 @@ utils/custom-hooks/     # useIsLoading (existente)
 
 **All AI Agents MUST:**
 
-- Registrar novos domínios em `AppModule` e `EnvService` quando adicionar env vars
+- Features novas em `modules/`; adapters técnicos em `shared/infrastructure/` — não misturar
+- Registrar módulos em `AppModule` e vars em `EnvService`
 - Manter contrato `citations[]` estável com o front
 - Não chamar OpenAI/OpenRouter diretamente — usar `@luanpoppe/ai`
 - Documentar endpoints novos no Swagger (exceto internal em prod se omitido)
@@ -365,7 +392,9 @@ utils/custom-hooks/     # useIsLoading (existente)
 
 **Good:** `ChunkRepository.searchSimilar(embedding, k=6)` encapsula TypedSQL.
 
-**Bad:** SQL de vector espalhado em `ChatService` e `OnboardingService` duplicado.
+**Bad:** SQL de vector em `ChatService`; PrismaService injetado direto no controller.
+
+**Bad:** Controller ou rota HTTP dentro de `shared/infrastructure/`.
 
 ## Project Structure & Boundaries
 
@@ -391,12 +420,16 @@ choque-de-cultura-rag/
 │   │   │   │   ├── swagger.config.ts
 │   │   │   │   └── guards/
 │   │   │   │       └── ingest-secret.guard.ts
+│   │   │   ├── shared/
+│   │   │   │   └── infrastructure/
+│   │   │   │       ├── infrastructure.module.ts
+│   │   │   │       ├── prisma/
+│   │   │   │       ├── vector-store/
+│   │   │   │       ├── ai/
+│   │   │   │       └── rag/
 │   │   │   └── modules/
-│   │   │       ├── prisma/
 │   │   │       ├── ingestion/
 │   │   │       ├── episodes/
-│   │   │       ├── chunks/
-│   │   │       ├── rag/
 │   │   │       ├── chat/
 │   │   │       └── onboarding/
 │   │   └── test/
@@ -427,15 +460,17 @@ choque-de-cultura-rag/
 
 **Frontend:** sem acesso a DB/IA; só HTTP + `localStorage`.
 
-**Data:** Postgres exclusivo do backend; Prisma Client singleton no `PrismaModule`.
+**Data:** Postgres exclusivo do backend; Prisma Client em `shared/infrastructure/prisma` (exportado via `InfrastructureModule`).
+
+**Infrastructure:** sem rotas HTTP; consumida por `modules/*`.
 
 ### Requirements to Structure Mapping
 
 | FR / área | Localização |
 |---|---|
-| FR-1–5 Ingestão | `modules/ingestion`, `modules/episodes`, `prisma` |
-| FR-6–11 Chat RAG | `modules/chat`, `modules/rag`, `modules/chunks` |
-| FR-12 Guardrails | `modules/rag` (prompt + pós-validação) |
+| FR-1–5 Ingestão | `modules/ingestion`, `modules/episodes` + `infrastructure/prisma`, `ai` (whisper) |
+| FR-6–11 Chat RAG | `modules/chat` + `infrastructure/rag`, `vector-store`, `ai` |
+| FR-12 Guardrails | `infrastructure/rag` (prompt + pós-validação); aplicado em `ChatService` |
 | FR-13–16 Onboarding | `modules/onboarding`, `components/onboarding` |
 | FR-17–20 UI | `app/page.tsx`, `components/chat`, `lib/storage` |
 
@@ -451,6 +486,114 @@ choque-de-cultura-rag/
 ### Data Flow (pergunta no chat)
 
 1. Front `POST /api/chat` com `message` + `history`
-2. `ChatService` → embed query → `ChunkRepository.searchSimilar`
-3. `RagService` → LLM com contexto + guardrails
+2. `ChatService` (`modules/chat`) → `RagService` (`infrastructure/rag`)
+3. `RagService` → `AiService.embed` → `ChunkRepository.searchSimilar` (`vector-store`) → LLM + guardrails
 4. Response `{ reply, citations }` → Front renderiza bubbles + CitationCards
+
+## Architecture Validation Results
+
+### Coherence Validation ✅
+
+**Decision Compatibility:** Stack coerente — NestJS 11.1.24 + Next 15.5.19 + Prisma 7.8.0 + Postgres/pgvector + `@luanpoppe/ai`. Sem Redis na v1 alinha com jobs no Postgres. Prisma + TypedSQL para vetores é o padrão documentado pela Prisma até suporte nativo pleno.
+
+**Pattern Consistency:** Camadas `core` / `shared/infrastructure` / `modules` reforçam separação infra vs features (ajuste 2026-06-03). Naming camelCase API + snake_case DB via `@map` consistente. Contrato `citations[]` alinhado a UX inline.
+
+**Structure Alignment:** Árvore de diretórios suporta ingestão assíncrona, chat, onboarding e adapters técnicos isolados. Boundaries HTTP vs infra explícitos.
+
+### Requirements Coverage Validation ✅
+
+**Functional Requirements (FR-1–20):** Todos mapeados — ingestão (internal + worker), RAG/chat, guardrails em `infrastructure/rag`, onboarding, UI/localStorage, link GitHub. FR-9/FR-16 stretch documentados como opcionais.
+
+**Non-Functional Requirements:** Segurança (ingest secret, rate limit, CORS) — sim. Custo (modelos baratos) — diretriz, modelos TBD na implementação. Latência ~15s — assumida + loading UX. PT-BR — sim. Legal — posicionamento demo documentado.
+
+### Implementation Readiness Validation ✅
+
+**Decision Completeness:** Críticos fechados (DB, chunking, deploy, Prisma, camadas). Modelos OpenRouter e valor exato de throttling ficam para primeira story de IA/ops.
+
+**Structure Completeness:** Árvore alvo definida; alias `@infrastructure/*` documentado — **pendente aplicar no `tsconfig` do backend** na implementação.
+
+**Pattern Completeness:** Naming, erros, anti-patterns e fluxo de dados documentados com exemplos.
+
+### Gap Analysis Results
+
+| Prioridade | Gap | Ação |
+|---|---|---|
+| Importante | Modelos OpenRouter (embedding + chat) não fixados | Escolher na story de integração `@luanpoppe/ai`; fixar dimensão `vector(n)` |
+| Importante | Alias `@infrastructure/*` ainda não no `tsconfig` | Adicionar ao implementar pastas |
+| Importante | `docker-compose.yml` e schema Prisma ainda não existem | Primeira story |
+| Menor | Rate limit numérico (~15–30/min) | Ajustar em prod conforme abuso |
+| Menor | Swagger omitir `/internal` em prod | Config por `NODE_ENV` |
+| Menor | Fundir `episodes` em `ingestion` | Opcional; não bloqueia |
+
+**Critical Gaps:** nenhum.
+
+### Validation Issues Addressed
+
+- **Estrutura modules vs infra:** resolvido com `shared/infrastructure/` (feedback Luan).
+- **Versões Nest/Next:** atualizadas no repo para 11.1.24 e 15.5.19.
+
+### Architecture Completeness Checklist
+
+**Requirements Analysis**
+
+- [x] Project context thoroughly analyzed
+- [x] Scale and complexity assessed
+- [x] Technical constraints identified
+- [x] Cross-cutting concerns mapped
+
+**Architectural Decisions**
+
+- [x] Critical decisions documented with versions
+- [x] Technology stack fully specified
+- [x] Integration patterns defined
+- [x] Performance considerations addressed (assumptions documented)
+
+**Implementation Patterns**
+
+- [x] Naming conventions established
+- [x] Structure patterns defined
+- [x] Communication patterns specified
+- [x] Process patterns documented
+
+**Project Structure**
+
+- [x] Complete directory structure defined
+- [x] Component boundaries established
+- [x] Integration points mapped
+- [x] Requirements to structure mapping complete
+
+### Architecture Readiness Assessment
+
+**Overall Status:** **READY WITH MINOR GAPS**
+
+**Confidence Level:** **Alta** — PoC com escopo fechado; gaps restantes são detalhes de implementação, não decisões estruturais em aberto.
+
+**Key Strengths:**
+
+- Pipeline RAG end-to-end especificado com citações verificáveis
+- Segurança adequada para demo pública
+- Separação clara infra vs features para agentes de IA
+- Alinhamento forte com PRD, UX e project-context
+
+**Areas for Future Enhancement:**
+
+- Redis/fila externa; re-ranking; speaker diarization
+- Suporte Prisma nativo a `vector` quando estável
+- CI/CD automatizado
+
+### Implementation Handoff
+
+**AI Agent Guidelines:**
+
+- Seguir este documento + `project-context.md` + `DESIGN.md` / `EXPERIENCE.md`
+- Infra em `shared/infrastructure/`; HTTP apenas em `modules/`
+- Nunca bypass `@luanpoppe/ai`; nunca Citation Card sem chunk real
+
+**First Implementation Priority:**
+
+1. `docker-compose.yml` + Prisma 7.8.0 + migration pgvector  
+2. `InfrastructureModule` (`prisma`, `vector-store`, `ai`, `rag`)  
+3. `modules/ingestion` + disparo protegido  
+4. `modules/chat` + frontend chat  
+
+**Downstream BMad sugerido:** `bmad-create-epics-and-stories` → `bmad-dev-story`

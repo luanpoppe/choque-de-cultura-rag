@@ -58,7 +58,7 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 
 **NestJS (backend)**
 
-- Novos domínios → módulos em `src/modules/` (alias `@modules/*`); registrar em `AppModule`.
+- Features HTTP → `src/modules/` (`@modules/*`); infra (Prisma, vector store, AI/RAG) → `src/shared/infrastructure/` (`@infrastructure/*`); registrar em `AppModule`.
 - **DTOs:** schema Zod → `createZodDto()` — nunca `class-validator`.
 - **Env vars:** validar via `EnvService.getEnvs()` (Zod) — não acessar `process.env` direto nos services.
 - `ZodValidationPipe` já é global — DTOs Zod funcionam automaticamente.
