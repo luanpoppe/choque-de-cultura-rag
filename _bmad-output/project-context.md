@@ -26,10 +26,10 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 | Camada | Stack | Versões |
 |---|---|---|
 | Monorepo | pnpm workspaces | `packages/backend`, `packages/frontend` |
-| Backend | NestJS 11 + Express | `@nestjs/*` ^11, TypeScript ^5.7 |
+| Backend | NestJS 11 + Express | `@nestjs/*` ^11.1.24, TypeScript ^5.7 |
 | Validação | Zod + nestjs-zod | zod ^4.3, `ZodValidationPipe` global |
 | API docs | Swagger | rota `/api`, `cleanupOpenApiDoc` |
-| Frontend | Next.js App Router | next 15.1.6, React 19, Turbopack (`next dev --turbopack`) |
+| Frontend | Next.js App Router | next 15.5.19, React 19, Turbopack (`next dev --turbopack`) |
 | Estilo | Tailwind CSS | ^3.4 |
 | HTTP | axios | ^1.7.9 |
 | Toasts | react-hot-toast | layout root |
