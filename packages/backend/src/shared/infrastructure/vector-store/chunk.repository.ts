@@ -20,6 +20,12 @@ export type SimilarChunk = {
   distance: number;
 };
 
+export type SimilarChunkWithEpisode = SimilarChunk & {
+  episodeTitle: string;
+  youtubeVideoId: string;
+  durationSec: number | null;
+};
+
 export const EMBEDDING_DIMENSION = 1536;
 
 @Injectable()
@@ -66,6 +72,21 @@ export class ChunkRepository {
     embedding: number[],
     limit = 6,
   ): Promise<SimilarChunk[]> {
+    const rows = await this.searchSimilarWithEpisode(embedding, limit);
+    return rows.map(
+      ({
+        episodeTitle: _episodeTitle,
+        youtubeVideoId: _youtubeVideoId,
+        durationSec: _durationSec,
+        ...chunk
+      }) => chunk,
+    );
+  }
+
+  async searchSimilarWithEpisode(
+    embedding: number[],
+    limit = 6,
+  ): Promise<SimilarChunkWithEpisode[]> {
     if (embedding.length !== EMBEDDING_DIMENSION) {
       throw new Error(
         `Query embedding dimension must be ${EMBEDDING_DIMENSION}`,
@@ -73,17 +94,21 @@ export class ChunkRepository {
     }
     const vectorSql = Prisma.raw(`'[${embedding.join(',')}]'::vector`);
 
-    return this.prisma.$queryRaw<SimilarChunk[]>(
+    return this.prisma.$queryRaw<SimilarChunkWithEpisode[]>(
       Prisma.sql`
         SELECT
-          id,
-          episode_id AS "episodeId",
-          text,
-          start_sec AS "startSec",
-          end_sec AS "endSec",
-          (embedding <=> ${vectorSql}) AS distance
-        FROM chunks
-        ORDER BY embedding <=> ${vectorSql}
+          c.id,
+          c.episode_id AS "episodeId",
+          c.text,
+          c.start_sec AS "startSec",
+          c.end_sec AS "endSec",
+          (c.embedding <=> ${vectorSql}) AS distance,
+          e.title AS "episodeTitle",
+          e.youtube_video_id AS "youtubeVideoId",
+          e.duration_sec AS "durationSec"
+        FROM chunks c
+        INNER JOIN episodes e ON e.id = c.episode_id
+        ORDER BY c.embedding <=> ${vectorSql}
         LIMIT ${limit}
       `,
     );

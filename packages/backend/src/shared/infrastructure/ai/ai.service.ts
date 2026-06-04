@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { AI, type AICallParams, type AICallReturn } from '@luanpoppe/ai';
+import {
+  AI,
+  type AICallParams,
+  type AICallReturn,
+  type AICallStructuredOutputParams,
+  type AICallStructuredOutputReturn,
+} from '@luanpoppe/ai';
+import type z from 'zod';
 import { OpenAIEmbeddings } from '@langchain/openai';
 import { EnvService } from '@core/env.service';
 import {
@@ -36,6 +43,12 @@ export class AiService {
 
   call(params: AICallParams): AICallReturn {
     return this.ai.call(params);
+  }
+
+  callStructuredOutput<T extends z.ZodSchema>(
+    params: AICallStructuredOutputParams<T>,
+  ): AICallStructuredOutputReturn<T> {
+    return this.ai.callStructuredOutput(params);
   }
 
   embedDocuments(texts: string[]): Promise<number[][]> {

@@ -37,6 +37,46 @@ export class EnvService {
         .optional()
         .default('false')
         .transform((v) => v === 'true'),
+      CHAT_MODEL: z
+        .string()
+        .min(1)
+        .optional()
+        .default('openrouter/openai/gpt-4o-mini'),
+      RAG_TOP_K: z.coerce.number().int().min(1).max(20).optional().default(6),
+      RAG_MAX_DISTANCE: z.coerce
+        .number()
+        .min(0)
+        .max(2)
+        .optional()
+        .default(0.85),
+      RAG_MAX_QUOTE_CHARS: z.coerce
+        .number()
+        .int()
+        .min(80)
+        .max(2000)
+        .optional()
+        .default(280),
+      RAG_MAX_HISTORY_MESSAGES: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .max(100)
+        .optional()
+        .default(20),
+      CHAT_RATE_LIMIT_MAX: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .max(1000)
+        .optional()
+        .default(20),
+      CHAT_RATE_LIMIT_WINDOW_MS: z.coerce
+        .number()
+        .int()
+        .min(1000)
+        .max(3_600_000)
+        .optional()
+        .default(60_000),
     });
     const { data, error } = envSchema.safeParse(process.env);
     if (error) throw new Error(`Invalid env vars: ${error.message}`);
