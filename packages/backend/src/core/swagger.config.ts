@@ -6,5 +6,6 @@ export function createSwaggerConfig() {
     .setDescription('Documentação da API')
     .setVersion('1.0')
     .addTag('api')
+    .addTag('chat')
     .build();
 }

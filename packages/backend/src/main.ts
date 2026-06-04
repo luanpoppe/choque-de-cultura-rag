@@ -11,6 +11,7 @@ async function bootstrap() {
   logger.log('Starting application...');
   const app = await NestFactory.create(AppModule);
 
+  app.set('trust proxy', 1);
 
   app.useGlobalPipes(new ZodValidationPipe());
   logger.log('ZodValidationPipe enabled');
