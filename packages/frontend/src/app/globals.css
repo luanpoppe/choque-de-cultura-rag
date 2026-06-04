@@ -3,19 +3,51 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --choque-accent: #e11d48;
+  --choque-accent-secondary: #f43f5e;
+  --choque-accent-muted: #be123c;
+  --choque-accent-surface: #fff1f2;
+  --choque-accent-surface-strong: #ffe4e6;
+  --choque-accent-border: #fecdd3;
+  --choque-accent-border-focus: #fda4af;
+  --choque-accent-ring: rgba(244, 63, 94, 0.15);
+  --choque-accent-shadow: rgba(225, 29, 72, 0.08);
+  --choque-bg-start: #fff1f2;
+  --choque-bg-mid: #fafafa;
+  --choque-bg-end: #fff7ed;
+  --choque-surface: rgba(255, 255, 255, 0.88);
+  --choque-surface-border: rgba(255, 255, 255, 0.9);
+  --choque-text-primary: #0f172a;
+  --choque-text-secondary: #64748b;
+  --choque-text-muted: #94a3b8;
+  --choque-surface-subtle: #fafafa;
+  --choque-user-bubble: #1c1917;
+  --choque-user-bubble-text: #fafaf9;
+  --choque-agent-bubble: #fafafa;
+  --choque-agent-bubble-text: #44403c;
+  --choque-agent-bubble-border: #f5f5f4;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--choque-text-primary);
+  background: linear-gradient(
+    160deg,
+    var(--choque-bg-start) 0%,
+    var(--choque-bg-mid) 45%,
+    var(--choque-bg-end) 100%
+  );
+  min-height: 100vh;
+  font-family: var(--font-geist-sans), ui-sans-serif, 'Segoe UI', system-ui,
+    sans-serif;
+}
+
+@layer utilities {
+  .choque-shell-glass {
+    background: var(--choque-surface);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--choque-surface-border);
+    box-shadow:
+      0 4px 6px rgba(15, 23, 42, 0.04),
+      0 24px 48px var(--choque-accent-shadow);
+  }
 }
