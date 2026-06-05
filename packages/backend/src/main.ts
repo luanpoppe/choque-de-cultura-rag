@@ -1,20 +1,27 @@
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule } from '@nestjs/swagger';
 import { ZodValidationPipe, cleanupOpenApiDoc } from 'nestjs-zod';
 import { createSwaggerConfig } from './core/swagger.config';
 import { EnvService } from './core/env.service';
-import { Logger } from '@nestjs/common';
+import { resolveNestLogLevels } from './core/log-level';
+import { LoggingInterceptor } from '@infrastructure/logging/logging.interceptor';
 
 async function bootstrap() {
+  const logLevels = resolveNestLogLevels(process.env.LOG_LEVEL);
   const logger = new Logger('Bootstrap');
+  Logger.overrideLogger(logLevels);
+
   logger.log('Starting application...');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: logLevels });
 
   app.set('trust proxy', 1);
 
   app.useGlobalPipes(new ZodValidationPipe());
+  app.useGlobalInterceptors(new LoggingInterceptor());
   logger.log('ZodValidationPipe enabled');
+  logger.log(`Log level: ${logLevels.join(', ')}`);
 
   // Configuração do Swagger
   const config = createSwaggerConfig();

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import z from 'zod';
+import { LOG_LEVELS } from './log-level';
 
 @Injectable()
 export class EnvService {
@@ -15,6 +16,7 @@ export class EnvService {
           { message: 'DATABASE_URL must be a PostgreSQL connection string' },
         ),
       PORT: z.coerce.number().optional().default(3000),
+      LOG_LEVEL: z.enum(LOG_LEVELS).optional().default('log'),
       OPENROUTER_API_KEY: z.string().min(1),
       /** STT com segmentos na ingestão; opcional no boot, obrigatória ao transcrever. */
       OPENAI_API_KEY: z.string().min(1).optional(),
@@ -72,13 +74,6 @@ export class EnvService {
         .max(2)
         .optional()
         .default(0.85),
-      RAG_MAX_QUOTE_CHARS: z.coerce
-        .number()
-        .int()
-        .min(80)
-        .max(2000)
-        .optional()
-        .default(280),
       RAG_MAX_HISTORY_MESSAGES: z.coerce
         .number()
         .int()
@@ -86,6 +81,14 @@ export class EnvService {
         .max(100)
         .optional()
         .default(20),
+      /** Máximo de chamadas search_archive por turno do agente RAG. */
+      RAG_AGENT_MAX_SEARCHES: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(10)
+        .optional()
+        .default(4),
       CHAT_RATE_LIMIT_MAX: z.coerce
         .number()
         .int()
