@@ -4,7 +4,11 @@ jest.mock('@luanpoppe/ai', () => ({
     ai: (content: string) => ({ role: 'ai', content }),
   },
 }));
+jest.mock('@infrastructure/ai/ai-json-call', () => ({
+  callJsonOutput: jest.fn(),
+}));
 
+import { callJsonOutput } from '@infrastructure/ai/ai-json-call';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EnvService } from '@core/env.service';
 import { AiService } from '@infrastructure/ai/ai.service';
@@ -20,7 +24,7 @@ const mockEnvs = {
   EMBEDDING_MODEL: 'openai/text-embedding-3-small',
   WHISPER_MODEL: 'openai/whisper-1',
   INGEST_SECRET: 'secret',
-  CHAT_MODEL: 'openrouter/openai/gpt-4o-mini',
+  CHAT_MODEL: 'openrouter/deepseek/deepseek-v4-flash',
   RAG_TOP_K: 6,
   RAG_MAX_DISTANCE: 0.85,
   RAG_MAX_QUOTE_CHARS: 280,
@@ -43,22 +47,27 @@ const sampleChunk = (
   ...overrides,
 });
 
+const mockCallJson = callJsonOutput as jest.Mock;
+
 describe('RagService', () => {
   let service: RagService;
   let aiService: {
     embedQuery: jest.Mock;
     call: jest.Mock;
-    callStructuredOutput: jest.Mock;
   };
   let chunkRepository: { searchSimilarWithEpisode: jest.Mock };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+    mockCallJson.mockImplementation(async (_ai, params) => {
+      if (params.systemPrompt.includes('classifica se a pergunta')) {
+        return { offTopic: false };
+      }
+      return { citationIndexes: [1] };
+    });
     aiService = {
       embedQuery: jest.fn().mockResolvedValue([0.1]),
       call: jest.fn().mockResolvedValue({ text: 'Resposta do agente.' }),
-      callStructuredOutput: jest
-        .fn()
-        .mockResolvedValue({ response: { offTopic: false } }),
     };
     chunkRepository = {
       searchSimilarWithEpisode: jest.fn(),
@@ -77,10 +86,8 @@ describe('RagService', () => {
   });
 
   it('deve recusar off-topic sem citações', async () => {
-    aiService.callStructuredOutput.mockResolvedValue({
-      response: { offTopic: true },
-    });
-    aiService.call.mockResolvedValue({
+    mockCallJson.mockResolvedValueOnce({ offTopic: true });
+    aiService.call.mockResolvedValueOnce({
       text: 'Só consigo falar sobre Choque de Cultura!',
     });
 
@@ -99,7 +106,7 @@ describe('RagService', () => {
 
     expect(result.noMatch).toBe(true);
     expect(result.offTopic).toBeUndefined();
-    expect(aiService.call).not.toHaveBeenCalled();
+    expect(mockCallJson).toHaveBeenCalledTimes(1);
   });
 
   it('deve retornar noMatch quando distância vem como string acima do limite', async () => {
@@ -122,7 +129,36 @@ describe('RagService', () => {
     expect(result.noMatch).toBe(true);
     expect(result.citations).toEqual([]);
     expect(result.reply).toBe(NO_MATCH_REPLY);
-    expect(aiService.call).not.toHaveBeenCalled();
+    expect(mockCallJson).toHaveBeenCalledTimes(1);
+  });
+
+  it('mostra só citações aprovadas pelo filtro de relevância', async () => {
+    chunkRepository.searchSimilarWithEpisode.mockResolvedValue([
+      sampleChunk({
+        id: 'c1',
+        startSec: 315,
+        text: 'Rambo tem livro? Tem livro.',
+      }),
+      sampleChunk({
+        id: 'c2',
+        startSec: 262,
+        text: 'falando de cinema IMAX e legenda',
+        distance: 0.5,
+      }),
+    ]);
+    mockCallJson.mockImplementation(async (_ai, params) => {
+      if (params.systemPrompt.includes('classifica se a pergunta')) {
+        return { offTopic: false };
+      }
+      return { citationIndexes: [1] };
+    });
+
+    const result = await service.ask('O que falaram sobre Rambo ter livro?');
+
+    expect(result.citations).toHaveLength(1);
+    expect(result.citations[0].startSec).toBe(315);
+    expect(result.citations[0].quote).toContain('Rambo');
+    expect(mockCallJson).toHaveBeenCalledTimes(2);
   });
 
   it('deve retornar reply e citações derivadas dos chunks', async () => {
@@ -142,6 +178,7 @@ describe('RagService', () => {
     });
     expect(result.citations[0].quote).toContain('Harry Potter');
     expect(result.reply).toBe('Resposta do agente.');
+    expect(mockCallJson).toHaveBeenCalledTimes(1);
     expect(aiService.call).toHaveBeenCalledWith(
       expect.objectContaining({
         messages: expect.any(Array),
@@ -161,7 +198,12 @@ describe('RagService', () => {
 
     await service.ask('pergunta', longHistory);
 
-    const callArgs = aiService.call.mock.calls[0][0] as {
+    const ragCall = aiService.call.mock.calls.find(
+      (call) =>
+        typeof call[0]?.systemPrompt === 'string' &&
+        call[0].systemPrompt.includes('Trechos do acervo'),
+    );
+    const callArgs = ragCall![0] as {
       messages: { content: string }[];
     };
     const historyContents = callArgs.messages
