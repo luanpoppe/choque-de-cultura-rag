@@ -67,6 +67,7 @@ para que possa indexar o acervo em deploy público sem abuso.
 
 - API interna protegida; worker fire-and-forget com fallback `FAILED`.
 - Review: dedupe de IDs + body vazio.
+- **2026-06-05:** Logs de etapa no pipeline (`jobLog`) complementam FR-5 (GET status); ver também `LOG_LEVEL` + `LoggingInterceptor` em `architecture.md`.
 - 43 testes no backend.
 
 ### File List

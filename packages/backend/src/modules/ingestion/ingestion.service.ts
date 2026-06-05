@@ -48,6 +48,10 @@ export class IngestionService {
       data: { status: IngestionJobStatus.PENDING },
     });
 
+    this.logger.log(
+      `job ${job.id} queued: ${youtubeVideoIds.length} episode(s) force=${dto.force ?? false}`,
+    );
+
     void this.pipeline
       .runJob(job.id, youtubeVideoIds, { force: dto.force })
       .catch(async (error: unknown) => {

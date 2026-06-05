@@ -49,6 +49,7 @@ export class IngestionPipelineService {
     let failureCount = 0;
 
     if (youtubeVideoIds.length === 0) {
+      this.logger.log(`[IngestionJob:${jobId}] empty batch — nothing to process`);
       await this.prisma.ingestionJob.update({
         where: { id: jobId },
         data: {
@@ -61,6 +62,10 @@ export class IngestionPipelineService {
       return;
     }
 
+    this.logger.log(
+      `[IngestionJob:${jobId}] started force=${force} episodes=${youtubeVideoIds.length}`,
+    );
+
     for (const videoId of youtubeVideoIds) {
       try {
         const processed = await this.processEpisode(jobId, videoId, force);
@@ -69,7 +74,9 @@ export class IngestionPipelineService {
         failureCount += 1;
         const message =
           error instanceof Error ? error.message : String(error);
-        this.logger.warn(`Ingest failed for ${videoId}: ${message}`);
+        this.logger.warn(
+          `[IngestionJob:${jobId}] [Episode:${videoId}] failed: ${message}`,
+        );
         await this.recordEpisodeFailure(videoId, jobId, message);
       }
     }
@@ -86,6 +93,14 @@ export class IngestionPipelineService {
         completedAt: new Date(),
       },
     });
+
+    this.logger.log(
+      `[IngestionJob:${jobId}] finished success=${successCount} failure=${failureCount}`,
+    );
+  }
+
+  private jobLog(jobId: string, videoId: string, message: string): void {
+    this.logger.log(`[IngestionJob:${jobId}] [Episode:${videoId}] ${message}`);
   }
 
   private async processEpisode(
@@ -93,7 +108,13 @@ export class IngestionPipelineService {
     videoId: string,
     force: boolean,
   ): Promise<boolean> {
+    this.jobLog(jobId, videoId, 'processing…');
     const metadata = await this.ytDlp.fetchMetadata(videoId);
+    this.jobLog(
+      jobId,
+      videoId,
+      `metadata ok — "${metadata.title.slice(0, 60)}${metadata.title.length > 60 ? '…' : ''}" (${metadata.durationSec ?? '?'}s)`,
+    );
 
     const episode = await this.prisma.episode.upsert({
       where: { youtubeVideoId: metadata.youtubeVideoId },
@@ -120,13 +141,19 @@ export class IngestionPipelineService {
       episode.id,
     );
     if (existingChunks > 0 && !force) {
-      this.logger.log(`Skipping ${videoId}: already indexed (${existingChunks} chunks)`);
+      this.jobLog(
+        jobId,
+        videoId,
+        `skipped — already indexed (${existingChunks} chunks)`,
+      );
       return false;
     }
 
+    this.jobLog(jobId, videoId, 'downloading audio…');
     const { audioPath, cleanup } = await this.ytDlp.downloadAudio(videoId);
     try {
       const durationSec = metadata.durationSec ?? 1;
+      this.jobLog(jobId, videoId, `transcribing (~${durationSec}s)…`);
       const { segments: sttSegments } =
         await this.aiService.transcribeAudioFileWithSegments(
           audioPath,
@@ -137,6 +164,12 @@ export class IngestionPipelineService {
       if (sttSegments.length === 0) {
         throw new Error('Transcription produced no STT segments');
       }
+
+      this.jobLog(
+        jobId,
+        videoId,
+        `transcription ok — ${sttSegments.length} STT segments`,
+      );
 
       await this.transcriptSegmentRepository.deleteByEpisodeId(episode.id);
       await this.transcriptSegmentRepository.insertMany(
@@ -159,6 +192,13 @@ export class IngestionPipelineService {
         throw new Error('Transcription produced no chunkable content');
       }
 
+      this.jobLog(
+        jobId,
+        videoId,
+        `chunking ok — ${chunks.length} chunks (fineHead=${envs.INGEST_FINE_GRAINED_HEAD_SEC}s window=${envs.INGEST_CHUNK_DURATION_SEC}s)`,
+      );
+
+      this.jobLog(jobId, videoId, `embedding ${chunks.length} chunks…`);
       const embeddings = await this.aiService.embedDocuments(
         chunks.map((s) => s.text),
       );
@@ -179,6 +219,7 @@ export class IngestionPipelineService {
         })),
       );
 
+      this.jobLog(jobId, videoId, 'done');
       return true;
     } finally {
       await cleanup();
