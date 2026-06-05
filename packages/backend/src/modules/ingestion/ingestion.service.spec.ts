@@ -18,7 +18,8 @@ describe('IngestionService', () => {
 
   const envService = {
     getEnvs: jest.fn().mockReturnValue({
-      CHOQUE_YOUTUBE_CHANNEL_URL: 'https://www.youtube.com/@choque',
+      CHOQUE_YOUTUBE_CHANNEL_URL:
+        'https://www.youtube.com/playlist?list=PLA2Gd9vTv5MWbT1N-RVoTO7MHkfjKkYVV',
       INGEST_DEFAULT_LIMIT: 10,
     }),
   };
@@ -56,7 +57,7 @@ describe('IngestionService', () => {
     await service.startIngestion({ force: false } as never);
 
     expect(ytDlp.listOldestVideoIds).toHaveBeenCalledWith(
-      'https://www.youtube.com/@choque',
+      'https://www.youtube.com/playlist?list=PLA2Gd9vTv5MWbT1N-RVoTO7MHkfjKkYVV',
       10,
     );
     expect(pipeline.runJob).toHaveBeenCalledWith(

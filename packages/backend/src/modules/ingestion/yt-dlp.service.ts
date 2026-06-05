@@ -52,8 +52,8 @@ export class YtDlpService {
    * Baixa áudio e retorna caminho do arquivo + função de cleanup.
    */
   /**
-   * Lista os N vídeos mais antigos de um canal/playlist (tab /videos).
-   * Usa --playlist-reverse: uploads do YouTube vêm do mais novo ao mais antigo.
+   * Lista os N vídeos mais antigos de um canal (`/videos`) ou de uma playlist.
+   * Usa --playlist-reverse: ordem do YouTube é do mais novo ao mais antigo; reverse → mais antigos primeiro.
    */
   async listOldestVideoIds(channelOrPlaylistUrl: string, limit: number): Promise<string[]> {
     const url = normalizeChannelVideosUrl(channelOrPlaylistUrl);

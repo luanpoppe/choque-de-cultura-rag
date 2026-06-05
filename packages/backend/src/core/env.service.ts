@@ -39,6 +39,7 @@ export class EnvService {
       YTDLP_BIN: z.string().min(1).optional(),
       INGEST_TEMP_DIR: z.string().min(1).optional(),
       INGEST_SECRET: z.string().min(1),
+      /** Canal (`@handle/videos`) ou playlist de episódios para `listOldestVideoIds`. */
       CHOQUE_YOUTUBE_CHANNEL_URL: z.string().url().optional(),
       INGEST_DEFAULT_LIMIT: z.coerce.number().int().min(1).max(50).optional().default(10),
       /** Início do vídeo: cada segmento Whisper vira um chunk (default 180s). 0 = só janelas. */

@@ -8,7 +8,8 @@ describe('normalizeChannelVideosUrl', () => {
   });
 
   it('keeps playlist url unchanged', () => {
-    const url = 'https://www.youtube.com/playlist?list=PLtest';
+    const url =
+      'https://www.youtube.com/playlist?list=PLA2Gd9vTv5MWbT1N-RVoTO7MHkfjKkYVV';
     expect(normalizeChannelVideosUrl(url)).toBe(url);
   });
 });
