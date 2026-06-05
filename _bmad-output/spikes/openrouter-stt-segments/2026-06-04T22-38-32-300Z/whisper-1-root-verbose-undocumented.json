@@ -1,0 +1,33 @@
+{
+  "requestCase": {
+    "id": "whisper-1-root-verbose-undocumented",
+    "model": "openai/whisper-1",
+    "bodyExtras": {
+      "response_format": "verbose_json",
+      "timestamp_granularities": [
+        "segment"
+      ]
+    }
+  },
+  "analysis": {
+    "ok": true,
+    "httpStatus": 200,
+    "topLevelKeys": [
+      "text",
+      "usage"
+    ],
+    "hasSegmentsArray": false,
+    "segmentCount": 0,
+    "hasWordsArray": false,
+    "wordCount": 0,
+    "textPreview": "",
+    "generationId": "gen-stt-1780612731-LCEFt2w8ipdoS296CdOm"
+  },
+  "response": {
+    "text": "",
+    "usage": {
+      "seconds": 30,
+      "cost": 0.003
+    }
+  }
+}

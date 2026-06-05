@@ -1,0 +1,39 @@
+{
+  "requestCase": {
+    "id": "whisper-1-provider-groq-verbose",
+    "model": "openai/whisper-1",
+    "bodyExtras": {
+      "provider": {
+        "options": {
+          "groq": {
+            "response_format": "verbose_json",
+            "timestamp_granularities": [
+              "segment"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "analysis": {
+    "ok": true,
+    "httpStatus": 200,
+    "topLevelKeys": [
+      "text",
+      "usage"
+    ],
+    "hasSegmentsArray": false,
+    "segmentCount": 0,
+    "hasWordsArray": false,
+    "wordCount": 0,
+    "textPreview": "Transcrição e Legendas ETC FILMES",
+    "generationId": "gen-stt-1780612726-X5DfvNGAMMEIxu9n4E1k"
+  },
+  "response": {
+    "text": "Transcrição e Legendas ETC FILMES",
+    "usage": {
+      "seconds": 30,
+      "cost": 0.003
+    }
+  }
+}

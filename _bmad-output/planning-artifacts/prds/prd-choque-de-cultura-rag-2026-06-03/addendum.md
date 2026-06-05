@@ -10,7 +10,7 @@ Detalhes técnicos e decisões de mecanismo que não pertencem ao corpo principa
   - Cards com citações embutidos no fluxo do chat
   - Mensagens "interativas" no meio da conversa
   - Split: resposta textual de um lado + painel/card com metadados dos vídeos citados do outro
-- **Onboarding novatos (2026-06-03):** botão para quem não conhece Choque de Cultura → chat sugere perguntas de exemplo **ancoradas no vector store** (não hardcoded)
+- **Onboarding novatos (2026-06-03):** botão para quem não conhece Choque de Cultura → chat sugere perguntas de exemplo **ancoradas no acervo** (amostras do vector store + reformulação via LLM/OpenRouter, não lista hardcoded; fallback heurístico se IA indisponível)
 - **Onboarding stretch B:** mini-resumo/panorama dos temas indexados além das sugestões clicáveis
 
 ## IA — custo e providers

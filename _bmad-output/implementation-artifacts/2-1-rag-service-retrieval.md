@@ -25,6 +25,7 @@ para confiar que as citações são reais.
 8. **AC8** — `history` considerado em classificação e geração (FR-10).
 9. **AC9** — Citações derivadas dos chunks recuperados (não inventadas pelo LLM).
 10. **AC10** — Testes unitários: guardrails, citações, happy path.
+11. **AC11** — Filtro pós-resposta (`rag-citation-filter`): IA escolhe quais trechos `[N]` viram cards; exclui chunks recuperados mas irrelevantes à pergunta/resposta; fallback `[1]` se filtro falhar.
 
 ## Tasks / Subtasks
 
@@ -38,7 +39,7 @@ para confiar que as citações são reais.
 
 ### Completion Notes
 
-- `RagService.ask`: classificação off-topic (structured) → retrieval k=6 com threshold → resposta LLM; citações sempre dos chunks.
+- `RagService.ask`: classificação off-topic (`callJsonOutput`) → retrieval k=6 com threshold → resposta LLM → filtro de citações (`selectCitationIndexes`) → cards só dos trechos aprovados.
 - Sem endpoint HTTP (story 2.2).
 
 ### File List
@@ -64,10 +65,12 @@ para confiar que as citações são reais.
 | Patch | `$queryRaw` pode retornar `distance` como string → filtro quebrava | `coerceChunkDistance` em `rag-distance.ts` |
 | Patch | History ilimitado → risco de estourar contexto | `RAG_MAX_HISTORY_MESSAGES` (default 20) |
 | Patch | Citações duplicadas se mesmo chunk no top-k | dedupe por `chunk.id` |
-| Defer | 2 chamadas LLM por pergunta on-topic (classifier + answer) | aceito na PoC |
+| OK | Filtro de citações por relevância à resposta | `rag-citation-filter.ts` |
+| Defer | 3+ chamadas LLM on-topic (classifier + answer + citation filter) | aceito na PoC |
 | Defer | Classifier pode dar falso positivo/negativo | aceito; ajuste de prompt depois |
 
 ## Change Log
 
 - 2026-06-03: Story 2.1 implementada (review).
 - 2026-06-03: Code review — Approve com patches de distance, history cap e dedupe.
+- 2026-06-03: Filtro IA de Citation Cards (pós-MVP polish da 2.1); `callJsonOutput` no classificador.

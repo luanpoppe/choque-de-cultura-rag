@@ -1,0 +1,50 @@
+{
+  "requestCase": {
+    "id": "whisper-large-v3-provider-openai-verbose",
+    "model": "openai/whisper-large-v3",
+    "bodyExtras": {
+      "provider": {
+        "options": {
+          "openai": {
+            "response_format": "verbose_json",
+            "timestamp_granularities": [
+              "segment"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "analysis": {
+    "ok": false,
+    "httpStatus": 404,
+    "topLevelKeys": [
+      "error"
+    ],
+    "hasSegmentsArray": false,
+    "segmentCount": 0,
+    "hasWordsArray": false,
+    "wordCount": 0,
+    "textPreview": "",
+    "error": "{\"error\":{\"message\":\"No allowed providers are available for the selected model.\",\"code\":404,\"metadata\":{\"available_providers\":[\"groq\",\"together\"],\"requested_providers\":[\"google-vertex\",\"openai\",\"deepseek\",\"anthropic\",\"google-ai-studio\"]}}}"
+  },
+  "response": {
+    "error": {
+      "message": "No allowed providers are available for the selected model.",
+      "code": 404,
+      "metadata": {
+        "available_providers": [
+          "groq",
+          "together"
+        ],
+        "requested_providers": [
+          "google-vertex",
+          "openai",
+          "deepseek",
+          "anthropic",
+          "google-ai-studio"
+        ]
+      }
+    }
+  }
+}

@@ -34,7 +34,7 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 | HTTP | axios | ^1.7.9 |
 | Toasts | react-hot-toast | layout root |
 | Testes | Jest + SWC | `@swc/jest`, `*.spec.ts` |
-| **IA (obrigatório)** | `@luanpoppe/ai` | ^1.1.5 — usar só via `AiService` em `@infrastructure/ai` |
+| **IA (obrigatório)** | `@luanpoppe/ai` | ^1.1.6 — `AI`, `AIEmbeddings`, `AIAudio`; só via `AiService` |
 
 **Dev:** `pnpm dev` na raiz sobe backend + frontend em paralelo.
 
@@ -77,9 +77,15 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 **IA / RAG (a implementar)**
 
 - **Toda** integração de IA via `@luanpoppe/ai` — não chamar OpenAI/Gemini direto.
-- IA via **OpenRouter** (`OPENROUTER_API_KEY`): chat, embeddings e Whisper/STT. `OPENAI_API_KEY` não é usada.
+- IA via **OpenRouter** (`OPENROUTER_API_KEY`): chat e embeddings.
+- Ingestão STT com timestamps: **OpenAI direto** via `AIAudio.transcribeDetailedOpenAI` (`OPENAI_API_KEY`, `whisper-1` + `verbose_json` segment) — OpenRouter STT só retorna `text`.
+- Chunking ingestão: `INGEST_FINE_GRAINED_HEAD_SEC` (default 180) = 1 segmento Whisper → 1 chunk; depois `INGEST_CHUNK_DURATION_SEC` (default **30**) com overlap 10–15%.
+- Reingestão: `pnpm --filter @choque-de-cultura-rag/backend reingest:force` (`nest build` + script compilado); ~US$ 0,006/min de áudio por episódio.
 - Respostas RAG devem incluir **vídeo + timestamp** (título, URL, momento).
 - Guardrails: agente responde **somente** sobre Choque de Cultura; off-topic → recusa educada.
+- **Onboarding:** `POST /api/onboarding/suggestions` amostra chunks do DB e gera perguntas curtas via `callJsonOutput` (`AiService.call` + JSON, não `callStructuredOutput` — DeepSeek thinking não suporta `tool_choice`); fallback em `onboarding-suggestion.builder.ts` se a IA falhar.
+- **Classificador off-topic (RAG):** mesmo padrão `callJsonOutput` em `ai-json-call.ts`.
+- **Filtro de Citation Cards (RAG):** `rag-citation-filter.ts` — após a resposta, IA escolhe quais trechos do top-k viram cards (não listar todos os chunks recuperados).
 - Ingestão v1: episódios **mais antigos** primeiro (~5–10).
 
 ### Testing Rules

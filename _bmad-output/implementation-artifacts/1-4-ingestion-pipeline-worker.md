@@ -18,7 +18,7 @@ para que transcrições viram chunks embedados no vector store.
 1. **AC1** — Dado job `RUNNING`, worker processa lote de `youtubeVideoIds` e persiste metadados YouTube (FR-2).
 2. **AC2** — Áudio extraído via yt-dlp; transcrito via `AiService.transcribeWithWhisper` (FR-3).
 3. **AC3** — Falha em um episódio registra motivo em `Episode.lastIngestError` e não bloqueia os demais (FR-3).
-4. **AC4** — Transcrição segmentada em chunks ~60s com overlap 10–15%; `startSec`/`endSec` persistidos (FR-4).
+4. **AC4** — Transcrição segmentada em chunks (política atual: zona fina + janelas 30s — ver story 1.6); `startSec`/`endSec` persistidos (FR-4).
 5. **AC5** — Embeddings via `AiService.embedDocuments` persistidos em `Chunk` com coluna `vector(1536)` (FR-4).
 6. **AC6** — `ChunkRepository.searchSimilar` usa `$queryRaw` com operador pgvector `<=>` (FR-4).
 7. **AC7** — Arquivo de áudio temporário removido após transcrição (sucesso ou falha).

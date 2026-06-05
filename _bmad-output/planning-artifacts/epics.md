@@ -29,7 +29,7 @@ FR-2: O sistema obtém metadados dos episódios alvo do canal Choque de Cultura 
 
 FR-3: O sistema obtém transcrição de cada episódio via Whisper a partir do áudio; falha isolada por episódio com motivo registrado.
 
-FR-4: O sistema divide transcrições em chunks (~60s, overlap 10–15%), gera embeddings e persiste chunks + metadados temporais no vector store; acervo consultável pelo agente.
+FR-4: O sistema divide transcrições em chunks (zona fina no início do vídeo: 1 segmento STT = 1 chunk; depois janelas configuráveis, default **30s**, overlap 10–15%), gera embeddings e persiste chunks + metadados temporais no vector store; acervo consultável pelo agente.
 
 FR-5: O operador pode consultar status/logs da execução de ingestão (episódio, etapa, erro).
 
@@ -95,7 +95,7 @@ NFR-10: Smoke metrics — SM-1 citação verificável; SM-2 ≥5 episódios inde
 - **Vector search:** TypedSQL ou `$queryRaw` com operador `<=>`; não Prisma ORM puro para similarity.
 - **Contrato API chat:** `POST /api/chat` → `{ reply, citations[], noMatch?, offTopic? }`; `history` do client.
 - **Onboarding API:** `POST /api/onboarding/suggestions` → `{ suggestions: string[] }`.
-- **Retrieval:** top-k default 6; sem re-rank v1.
+- **Retrieval:** top-k default 6; sem re-rank de embedding v1; filtro LLM de citações pós-resposta (só cards relevantes à pergunta).
 - **Whisper:** API paga barata (ex. OpenAI whisper-1) via `@luanpoppe/ai` quando suportado.
 - **YouTube:** yt-dlp para áudio/metadados; link `?t=startSec`.
 - **Deploy:** Vercel (front) + container Nest + Postgres gerenciado com pgvector.
@@ -235,7 +235,7 @@ So that **transcrições viram chunks embedados no vector store**.
 **Then** metadados YouTube são obtidos e persistidos (FR-2)  
 **And** áudio é extraído (yt-dlp), transcrito via Whisper API barata (FR-3)  
 **And** falha em um episódio registra motivo e não bloqueia os demais (FR-3)  
-**And** transcrição é segmentada em chunks ~60s com overlap 10–15% (FR-4)  
+**And** transcrição vira chunks via merge de segmentos STT (zona fina + janelas ~30s, overlap 10–15%) (FR-4)  
 **And** embeddings são gerados via `AiService` e persistidos com `startSec`/`endSec` (FR-4)  
 **And** busca por similaridade funciona via TypedSQL/`$queryRaw` em `vector-store`  
 **And** áudio temporário é removido após transcrição
@@ -255,6 +255,26 @@ So that **possa indexar o acervo em deploy público sem abuso**.
 **And** `GET /api/internal/ingest/:jobId` com mesmo secret retorna status, contagem e erros por episódio (FR-5)  
 **And** re-ingestão do mesmo `youtubeVideoId` é idempotente (skip ou `force` documentado)  
 **And** endpoint não aparece no Swagger público em produção (configurável)
+
+### Story 1.6: Timestamps reais na ingestão *(pós-TR 2026-06-03)*
+
+As a **visitante do chat**,  
+I want **links do YouTube nos cards que apontem para o momento real da fala**,  
+So that **eu não precise procurar manualmente no episódio**.
+
+**Acceptance Criteria:**
+
+**Given** episódio em ingestão  
+**When** o pipeline transcreve o áudio  
+**Then** segmentos STT com `start`/`end` reais são persistidos (`TranscriptSegment`) — fonte primária OpenAI `whisper-1` + `verbose_json` + granularidade `segment` (TR: OpenRouter STT não expõe segmentos)  
+**And** chunks são derivados por merge de segmentos (`INGEST_FINE_GRAINED_HEAD_SEC` + `INGEST_CHUNK_DURATION_SEC` default 30s, overlap 10–15%), não por repartição proporcional de palavras  
+**And** uma única passagem de STT por episódio (sem custo duplicado)  
+**And** `OPENAI_API_KEY` só na ingestão; chat/embeddings permanecem no OpenRouter  
+**And** re-ingestão com `force` atualiza segmentos + chunks  
+**And** áudio >25 MB é fatiado antes do STT com offset de timestamps  
+**And** contrato `POST /api/chat` / `citations[]` inalterado (melhora automática de `startSec`)
+
+**Research:** `_bmad-output/planning-artifacts/research/technical-whisper-timestamps-ingestao-research-2026-06-03.md`
 
 ---
 
@@ -276,6 +296,7 @@ So that **eu confie que as citações são reais**.
 **And** recupera top-k=6 chunks via `ChunkRepository.searchSimilar`  
 **And** monta prompt com contexto e instruções de domínio Choque de Cultura  
 **And** retorna estrutura `{ reply, citations[], noMatch?, offTopic? }` conforme contrato da arquitetura  
+**And** `citations[]` inclui apenas trechos que sustentam a resposta (filtro LLM após geração; não todos os chunks do top-k)  
 **And** sem chunks relevantes → `noMatch: true`, `citations: []` (FR-7)  
 **And** pergunta off-topic → `offTopic: true`, sem cards fabricados (FR-12)  
 **And** history do client é considerada para follow-up (FR-10)
@@ -386,7 +407,8 @@ So that **eu teste o produto em menos de 60s (SM-4)**.
 
 **Given** chat vazio  
 **When** clico "Nunca ouvi Choque de Cultura — ver exemplos" (FR-13, UX-DR3)  
-**Then** frontend chama API de sugestões derivadas do vector store (FR-14)  
+**Then** frontend chama API de sugestões derivadas do acervo indexado (FR-14)  
+**And** backend amostra trechos reais do vector store e gera perguntas curtas em PT-BR via `AiService` (`CHAT_MODEL`), sem copiar transcrição literal; fallback heurístico se a IA falhar (FR-11)  
 **And** chips clicáveis enviam pergunta ao chat (FR-15, UX-DR7)  
 **And** acervo vazio mostra mensagem orientativa (FR-14)  
 **And** hero oculta após primeira mensagem (UX-DR15)
@@ -435,3 +457,21 @@ So that **eu entenda o escopo antes de perguntar (FR-16)**.
 **When** aciono onboarding  
 **Then** além dos chips, posso ver panorama textual de temas/episódios reais (FR-16)  
 **And** texto menciona apenas conteúdo indexado
+
+### Story 3.8: Nova conversa e shell expandido *(Pós-MVP / polish)*
+
+As a **visitante do chat**,  
+I want **reiniciar a conversa com um botão e um painel de chat maior**,  
+So that **eu comece outro tópico sem apagar dados do browser e use melhor a tela em desktop**.
+
+**Acceptance Criteria:**
+
+**Given** mensagens, sugestões de onboarding ou panorama visível  
+**When** clico em **Nova conversa** no header  
+**Then** sessão é limpa no `localStorage` e na UI; hero vazio retorna; tema permanece (extensão FR-19)  
+**And** botão oculto quando não há nada a resetar; desabilitado durante loading  
+
+**Given** layout do chat  
+**Then** shell central usa **`min(960px, 92vw)`** de largura máxima e altura mínima **`min(80vh, 900px)`** — desvio documentado em relação ao **440px** da story 3.1 / DESIGN.md  
+
+**Implementação:** `_bmad-output/implementation-artifacts/3-8-nova-conversa-shell-expandido.md` — **done** (2026-06-03).

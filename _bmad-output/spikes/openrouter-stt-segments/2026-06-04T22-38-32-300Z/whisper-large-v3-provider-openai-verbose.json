@@ -1,0 +1,37 @@
+{
+  "requestCase": {
+    "id": "whisper-large-v3-provider-openai-verbose",
+    "model": "openai/whisper-large-v3",
+    "bodyExtras": {
+      "provider": {
+        "options": {
+          "openai": {
+            "response_format": "verbose_json",
+            "timestamp_granularities": [
+              "segment"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "analysis": {
+    "ok": false,
+    "httpStatus": 400,
+    "topLevelKeys": [
+      "error"
+    ],
+    "hasSegmentsArray": false,
+    "segmentCount": 0,
+    "hasWordsArray": false,
+    "wordCount": 0,
+    "textPreview": "",
+    "error": "{\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}"
+  },
+  "response": {
+    "error": {
+      "message": "Provider returned 400",
+      "code": 400
+    }
+  }
+}

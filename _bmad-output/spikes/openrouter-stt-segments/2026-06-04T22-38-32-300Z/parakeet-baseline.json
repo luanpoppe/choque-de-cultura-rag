@@ -1,0 +1,27 @@
+{
+  "requestCase": {
+    "id": "parakeet-baseline",
+    "model": "nvidia/parakeet-tdt-0.6b-v3"
+  },
+  "analysis": {
+    "ok": true,
+    "httpStatus": 200,
+    "topLevelKeys": [
+      "text",
+      "usage"
+    ],
+    "hasSegmentsArray": false,
+    "segmentCount": 0,
+    "hasWordsArray": false,
+    "wordCount": 0,
+    "textPreview": "",
+    "generationId": "gen-stt-1780612717-byYKB0TkCuI7K2sSYCrm"
+  },
+  "response": {
+    "text": "",
+    "usage": {
+      "seconds": 30,
+      "cost": 0.00075
+    }
+  }
+}

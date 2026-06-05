@@ -1,0 +1,39 @@
+{
+  "requestCase": {
+    "id": "whisper-1-provider-groq-verbose",
+    "model": "openai/whisper-1",
+    "bodyExtras": {
+      "provider": {
+        "options": {
+          "groq": {
+            "response_format": "verbose_json",
+            "timestamp_granularities": [
+              "segment"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "analysis": {
+    "ok": true,
+    "httpStatus": 200,
+    "topLevelKeys": [
+      "text",
+      "usage"
+    ],
+    "hasSegmentsArray": false,
+    "segmentCount": 0,
+    "hasWordsArray": false,
+    "wordCount": 0,
+    "textPreview": "",
+    "generationId": "gen-stt-1780601304-V47R9iPYGlu8Mj6Xuk3Y"
+  },
+  "response": {
+    "text": "",
+    "usage": {
+      "seconds": 30,
+      "cost": 0.003
+    }
+  }
+}

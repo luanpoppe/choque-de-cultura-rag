@@ -29,10 +29,10 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 20 FRs em quatro domínios mapeiam para módulos NestJS + SPA Next.js:
 
-- **Ingestão (FR-1–5):** `POST` protegido dispara job assíncrono; pipeline YouTube → áudio → Whisper (API) → chunks ~60s com overlap 10–15% → embeddings → Postgres/pgvector. Falhas isoladas por episódio; status e logs consultáveis (operador).
+- **Ingestão (FR-1–5):** `POST` protegido dispara job assíncrono; pipeline YouTube → áudio → Whisper OpenAI via `@luanpoppe/ai` `AIAudio.transcribeDetailedOpenAI` (`verbose_json` + segmentos) → `transcript_segments` → chunks (merge de segmentos reais: **1 segmento = 1 chunk** nos primeiros `INGEST_FINE_GRAINED_HEAD_SEC`, depois janelas **`INGEST_CHUNK_DURATION_SEC`** default **30s**, overlap 10–15%) → embeddings → Postgres/pgvector. Chat/embeddings via OpenRouter (`AIEmbeddings`). Falhas isoladas por episódio; status e logs consultáveis (operador).
 - **Chat RAG (FR-6–11):** API REST; agente via `@luanpoppe/ai` + OpenRouter; resposta com `citations[]` para Citation Cards; multi-turn com `history` enviado pelo client (`localStorage`).
 - **Guardrails (FR-12):** domínio Choque de Cultura; off-topic sem citações fabricadas.
-- **Onboarding (FR-13–16):** sugestões derivadas do vector store; chips clicáveis.
+- **Onboarding (FR-13–16):** amostras do acervo (chunks) + geração de sugestões via LLM (`AiService`, mesmo `CHAT_MODEL` do chat); fallback heurístico; chips clicáveis.
 - **Interface (FR-17–20):** chat distintivo (DESIGN.md / EXPERIENCE.md), tema + sessão em `localStorage`, link GitHub.
 
 **Non-Functional Requirements:**
@@ -59,7 +59,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 |---|---|
 | Deploy | URL pública desde o início |
 | Vector store | **PostgreSQL + pgvector** (Docker local; gerenciado em prod) |
-| Chunking | **~60 s** de fala, **overlap 10–15%**; `start_sec` / `end_sec` obrigatórios por chunk |
+| Chunking | **30 s** (configurável) após zona fina; **180 s** iniciais com 1 segmento STT = 1 chunk; **overlap 10–15%**; `start_sec` / `end_sec` obrigatórios |
 | Redis | **Não na v1** — jobs/status de ingestão no Postgres; worker in-process no Nest |
 | Ingestão | Header **`X-Ingest-Secret`**; `202 Accepted` + `jobId`; status em endpoint interno |
 | Whisper | **API paga de baixo custo** (ex. OpenAI `whisper-1`); áudio temporário; sem Whisper local na v1 |
@@ -151,7 +151,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 | ORM | **Prisma 7.8.0** (`prisma` + `@prisma/client` alinhados) | Preferência explícita Luan; migrations e type-safety |
 | Vector search | **Migration SQL** `CREATE EXTENSION vector` + coluna `embedding` como `Unsupported("vector")` ou tabela gerida via migration raw; queries via **TypedSQL** ou `$queryRaw` com operador `<=>` | Prisma ainda não mapeia `vector` em schema de primeira classe; padrão oficial documentado |
 | Modelagem (conceitual) | `Episode`, `Chunk` (texto, `start_sec`, `end_sec`, embedding), `IngestionRun` / `IngestionJob` (status, erros) | Suporta FR-1–5, idempotência por `youtube_video_id` |
-| Chunking | **~60 s**, overlap **10–15%** | Decisão Luan; metadados temporais obrigatórios |
+| Chunking | **30 s** (`INGEST_CHUNK_DURATION_SEC`) + zona fina **180 s**; overlap **10–15%** | Ajustado pós-reingest 2026-06-04; segmentos STT reais (story 1.6) |
 | Validação API | **Zod DTOs** (`nestjs-zod`) na borda HTTP; Prisma no persistence layer | Convenção existente do repo |
 | Cache | **Nenhum na v1** | Volume baixo; YAGNI |
 | Migrations | **Prisma Migrate** | Versionamento de schema + SQL customizado para pgvector |
@@ -178,7 +178,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 | Prefixo | `/api` global (existente) | Consistência scaffold |
 | Erros | HTTP status semântico + body `{ message, code? }`; toasts no front | EXPERIENCE.md |
 | Chat `POST /api/chat` | Ver contrato abaixo | Citation Cards inline |
-| Onboarding `POST /api/onboarding/suggestions` | Retorna `{ suggestions: string[] }` do acervo | FR-14–15 |
+| Onboarding `POST /api/onboarding/suggestions` | Retorna `{ suggestions: string[], panorama?, emptyCorpus? }` — sugestões via LLM a partir de amostras do acervo | FR-14–15 |
 | Ingestão `POST /api/internal/ingest` | `202` + `{ jobId }`; `GET /api/internal/ingest/:jobId` | Assíncrono + status |
 | Ingest status/logs | `GET /api/internal/ingest/:jobId` (mesmo secret) | FR-5 |
 | IA | **`@luanpoppe/ai` apenas** | project-context |
@@ -207,7 +207,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 }
 ```
 
-**Retrieval:** top-k **6** chunks (default); sem re-rank na v1.
+**Retrieval:** top-k **6** chunks (default); sem re-rank de embedding na v1. **Citation filter:** após a resposta, LLM seleciona índices dos trechos que sustentam a resposta (`rag-citation-filter.ts`); fallback ao chunk `[1]` se falhar.
 
 ### Frontend Architecture
 

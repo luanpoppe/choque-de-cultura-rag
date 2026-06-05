@@ -1,0 +1,39 @@
+{
+  "requestCase": {
+    "id": "whisper-1-provider-openai-verbose",
+    "model": "openai/whisper-1",
+    "bodyExtras": {
+      "provider": {
+        "options": {
+          "openai": {
+            "response_format": "verbose_json",
+            "timestamp_granularities": [
+              "segment"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "analysis": {
+    "ok": true,
+    "httpStatus": 200,
+    "topLevelKeys": [
+      "text",
+      "usage"
+    ],
+    "hasSegmentsArray": false,
+    "segmentCount": 0,
+    "hasWordsArray": false,
+    "wordCount": 0,
+    "textPreview": "Se inscreva no canal e ative o sininho para receber notificações de novos vídeos. Até a próxima!",
+    "generationId": "gen-stt-1780601301-ARFuZgBucbxdOfGrrcP9"
+  },
+  "response": {
+    "text": "Se inscreva no canal e ative o sininho para receber notificações de novos vídeos. Até a próxima!",
+    "usage": {
+      "seconds": 30,
+      "cost": 0.003
+    }
+  }
+}

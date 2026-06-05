@@ -1,0 +1,25 @@
+{
+  "requestCase": {
+    "id": "whisper-large-v3-baseline",
+    "model": "openai/whisper-large-v3"
+  },
+  "analysis": {
+    "ok": false,
+    "httpStatus": 400,
+    "topLevelKeys": [
+      "error"
+    ],
+    "hasSegmentsArray": false,
+    "segmentCount": 0,
+    "hasWordsArray": false,
+    "wordCount": 0,
+    "textPreview": "",
+    "error": "{\"error\":{\"message\":\"Provider returned 400\",\"code\":400}}"
+  },
+  "response": {
+    "error": {
+      "message": "Provider returned 400",
+      "code": 400
+    }
+  }
+}

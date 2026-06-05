@@ -18,17 +18,17 @@ para que embeddings, Whisper e geração usem um único ponto configurável (Ope
 1. **AC1** — `@luanpoppe/ai` instalado no backend.
 2. **AC2** — `AiService` em `shared/infrastructure/ai/` registrado no `InfrastructureModule`.
 3. **AC3** — Nenhum outro service de produção instancia `AI` ou chama providers diretamente (só `AiService`).
-4. **AC4** — `OPENROUTER_API_KEY`, `EMBEDDING_MODEL` e `WHISPER_MODEL` validados em `EnvService` (somente OpenRouter; sem `OPENAI_API_KEY`).
+4. **AC4** — `OPENROUTER_API_KEY`, `EMBEDDING_MODEL` e `WHISPER_MODEL` validados em `EnvService`. `OPENAI_API_KEY` opcional no boot (obrigatória só na ingestão com segmentos — story 1.6).
 5. **AC5** — Métodos: `call`, `embedDocuments`, `embedQuery`, `transcribeWithWhisper`.
 6. **AC6** — Testes unitários com mocks (embed smoke + whisper delegate).
 
 ## Tasks / Subtasks
 
 - [x] Task 1: Dependência e env (AC: 1, 4)
-  - [x] Subtask 1.1: `pnpm add @luanpoppe/ai` + `@langchain/openai`
+  - [x] Subtask 1.1: `pnpm add @luanpoppe/ai` (evolução: ^1.1.6; `@langchain/openai` removido em 2026-06-04)
   - [x] Subtask 1.2: Vars em `EnvService` e `.env.example`
 - [x] Task 2: AiService + módulo (AC: 2, 3, 5)
-  - [x] Subtask 2.1: `AiService` com `AI`, embeddings OpenRouter, `AIAudioTranscription`
+  - [x] Subtask 2.1: `AiService` com `AI`, `AIEmbeddings.embedOpenRouter`, `AIAudio.transcribeOpenRouter` (STT texto)
   - [x] Subtask 2.2: `AiModule` global + export em `InfrastructureModule`
 - [x] Task 3: Testes (AC: 6)
   - [x] Subtask 3.1: `ai.service.spec.ts`
@@ -39,7 +39,7 @@ para que embeddings, Whisper e geração usem um único ponto configurável (Ope
 - [x] [Review][Patch] Validar resposta STT quando `text` ausente — `openrouter-transcription.ts`
 - [x] [Review][Patch] Timeout no `fetch` de transcrição (episódios longos) — `openrouter-transcription.ts`
 - [x] [Review][Defer] Base64 de áudio inteiro na RAM — endereçar na story 1.4 (chunk/stream)
-- [x] [Review][Defer] Embeddings via `@langchain/openai` dentro do `AiService` — aceito como gateway único até `@luanpoppe/ai` expor embed
+- [x] [Review][Defer] Embeddings via `@langchain/openai` — **resolvido 2026-06-04** com `AIEmbeddings` da lib ^1.1.6
 
 ## Senior Developer Review (AI)
 
@@ -56,7 +56,7 @@ para que embeddings, Whisper e geração usem um único ponto configurável (Ope
 
 | AC | Status | Notas |
 |----|--------|-------|
-| AC1 | OK | `@luanpoppe/ai` ^1.1.5 |
+| AC1 | OK | `@luanpoppe/ai` ^1.1.6 (atualizado 2026-06-04) |
 | AC2 | OK | `AiModule` global + `InfrastructureModule` |
 | AC3 | OK | Nenhum outro `new AI()` no `src/` |
 | AC4 | OK* | Vars corretas no código; texto da story estava desatualizado (corrigido) |
@@ -65,8 +65,8 @@ para que embeddings, Whisper e geração usem um único ponto configurável (Ope
 
 ## Dev Notes
 
-- `@luanpoppe/ai` 1.1.5 não expõe `embed` ainda — embeddings via `OpenAIEmbeddings` + base URL OpenRouter, encapsulados só em `AiService`.
-- Whisper/STT via OpenRouter (`/audio/transcriptions`); só `OPENROUTER_API_KEY` obrigatória.
+- `@luanpoppe/ai` **1.1.6:** `AIEmbeddings.embedDocuments` / `embedQuery` (OpenRouter); `AIAudio.transcribeOpenRouter` para STT só-texto.
+- Ingestão com timestamps: `AIAudio.transcribeDetailedOpenAI` + `OPENAI_API_KEY` (story 1.6) — não via OpenRouter STT.
 - Dimensão do vector (1536) será fixada na story 1.3 com `text-embedding-3-small`.
 
 ## Dev Agent Record
@@ -95,3 +95,4 @@ para que embeddings, Whisper e geração usem um único ponto configurável (Ope
 - 2026-06-03: Implementação story 1.2.
 - 2026-06-03: Code review — Approve com ressalvas (2 patches STT).
 - 2026-06-03: Patches de review aplicados; story concluída.
+- 2026-06-04: Atualização doc — lib 1.1.6, `AIEmbeddings`/`AIAudio`; removido `@langchain/openai`.
