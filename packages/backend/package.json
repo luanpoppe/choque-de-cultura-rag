@@ -23,11 +23,13 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:migrate:dev": "prisma migrate dev"
+    "prisma:migrate:dev": "prisma migrate dev",
+    "archive:validate": "tsx --tsconfig tsconfig.json src/scripts/validate-archive.ts",
+    "reingest:force": "nest build && node dist/scripts/reingest-force.js",
+    "spike:openrouter-stt": "tsx --tsconfig tsconfig.json src/scripts/spike-openrouter-stt-segments.ts"
   },
   "dependencies": {
-    "@langchain/openai": "^1.2.3",
-    "@luanpoppe/ai": "^1.1.5",
+    "@luanpoppe/ai": "^1.1.6",
     "@nestjs/common": "^11.1.24",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.1.24",

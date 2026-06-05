@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { EnvService } from '@core/env.service';
 
 const execFileAsync = promisify(execFile);
@@ -26,7 +26,7 @@ type YtDlpJson = {
 
 @Injectable()
 export class YtDlpService {
-  constructor(private readonly envService: EnvService) {}
+  constructor(@Inject(EnvService) private readonly envService: EnvService) {}
 
   async fetchMetadata(videoId: string): Promise<YoutubeEpisodeMetadata> {
     const url = this.watchUrl(videoId);
@@ -74,6 +74,36 @@ export class YtDlpService {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((id) => id.length > 0);
+  }
+
+  /**
+   * Lista idiomas de legenda automática disponíveis (spike / diagnóstico).
+   */
+  async listAutoSubtitleLangs(videoId: string): Promise<string[]> {
+    const url = this.watchUrl(videoId);
+    try {
+      const { stdout } = await execFileAsync(
+        this.bin(),
+        ['--list-subs', '--no-playlist', url],
+        { maxBuffer: 10 * 1024 * 1024 },
+      );
+      const langs: string[] = [];
+      let inAuto = false;
+      for (const line of stdout.split(/\r?\n/)) {
+        if (line.includes('auto-generated')) {
+          inAuto = true;
+          continue;
+        }
+        if (inAuto && line.trim() === '') break;
+        if (inAuto) {
+          const match = line.trim().match(/^([a-z]{2}(?:-[A-Za-z]+)?)\s/);
+          if (match?.[1]) langs.push(match[1]);
+        }
+      }
+      return langs;
+    } catch {
+      return [];
+    }
   }
 
   async downloadAudio(

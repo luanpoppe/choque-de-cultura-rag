@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
 } from '@nestjs/common';
 import { EnvService } from '@core/env.service';
@@ -15,7 +16,7 @@ export const CHAT_RATE_LIMIT_MESSAGE =
 @Injectable()
 export class ChatRateLimitGuard implements CanActivate {
   constructor(
-    private readonly envService: EnvService,
+    @Inject(EnvService) private readonly envService: EnvService,
     private readonly rateLimitService: ChatRateLimitService,
   ) {}
 

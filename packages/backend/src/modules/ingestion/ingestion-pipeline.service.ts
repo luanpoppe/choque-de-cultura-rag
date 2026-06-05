@@ -1,10 +1,11 @@
-import { readFile } from 'node:fs/promises';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { EnvService } from '@core/env.service';
 import { IngestionJobStatus } from '@/generated/prisma/client';
 import { AiService } from '@infrastructure/ai/ai.service';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { ChunkRepository } from '@infrastructure/vector-store/chunk.repository';
-import { segmentTranscriptIntoChunks } from './segment-transcript';
+import { TranscriptSegmentRepository } from '@infrastructure/vector-store/transcript-segment.repository';
+import { mergeTranscriptSegmentsIntoChunks } from './merge-transcript-segments';
 import { YtDlpService } from './yt-dlp.service';
 
 export type RunIngestionJobOptions = {
@@ -17,9 +18,11 @@ export class IngestionPipelineService {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Inject(EnvService) private readonly envService: EnvService,
     private readonly aiService: AiService,
     private readonly ytDlp: YtDlpService,
     private readonly chunkRepository: ChunkRepository,
+    private readonly transcriptSegmentRepository: TranscriptSegmentRepository,
   ) {}
 
   /**
@@ -123,30 +126,51 @@ export class IngestionPipelineService {
 
     const { audioPath, cleanup } = await this.ytDlp.downloadAudio(videoId);
     try {
-      const audioBuffer = await readFile(audioPath);
-      const transcript = await this.aiService.transcribeWithWhisper(
-        audioBuffer,
-        { format: 'mp3', languageIn2Digits: 'pt' },
+      const durationSec = metadata.durationSec ?? 1;
+      const { segments: sttSegments } =
+        await this.aiService.transcribeAudioFileWithSegments(
+          audioPath,
+          durationSec,
+          { format: 'mp3', languageIn2Digits: 'pt' },
+        );
+
+      if (sttSegments.length === 0) {
+        throw new Error('Transcription produced no STT segments');
+      }
+
+      await this.transcriptSegmentRepository.deleteByEpisodeId(episode.id);
+      await this.transcriptSegmentRepository.insertMany(
+        episode.id,
+        sttSegments.map((segment, ord) => ({
+          ord,
+          startSec: segment.startSec,
+          endSec: segment.endSec,
+          text: segment.text,
+          source: 'whisper',
+        })),
       );
 
-      const durationSec = metadata.durationSec ?? 1;
-      const segments = segmentTranscriptIntoChunks(transcript, durationSec);
-      if (segments.length === 0) {
-        throw new Error('Transcription produced no segmentable content');
+      const envs = this.envService.getEnvs();
+      const chunks = mergeTranscriptSegmentsIntoChunks(sttSegments, {
+        fineGrainedHeadSec: envs.INGEST_FINE_GRAINED_HEAD_SEC,
+        chunkDurationSec: envs.INGEST_CHUNK_DURATION_SEC,
+      });
+      if (chunks.length === 0) {
+        throw new Error('Transcription produced no chunkable content');
       }
 
       const embeddings = await this.aiService.embedDocuments(
-        segments.map((s) => s.text),
+        chunks.map((s) => s.text),
       );
-      if (embeddings.length !== segments.length) {
+      if (embeddings.length !== chunks.length) {
         throw new Error(
-          `Embedding count mismatch: expected ${segments.length}, got ${embeddings.length}`,
+          `Embedding count mismatch: expected ${chunks.length}, got ${embeddings.length}`,
         );
       }
 
       await this.chunkRepository.deleteByEpisodeId(episode.id);
       await this.chunkRepository.insertMany(
-        segments.map((segment, index) => ({
+        chunks.map((segment, index) => ({
           episodeId: episode.id,
           text: segment.text,
           startSec: segment.startSec,

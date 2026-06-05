@@ -1,11 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AIMessages, type AIModelNames } from '@luanpoppe/ai';
 import z from 'zod';
 import { EnvService } from '@core/env.service';
+import { callJsonOutput } from '@infrastructure/ai/ai-json-call';
 import { AiService } from '@infrastructure/ai/ai.service';
 import { ChunkRepository } from '@infrastructure/vector-store/chunk.repository';
 import type { SimilarChunkWithEpisode } from '@infrastructure/vector-store/chunk.repository';
 import { buildWatchUrl } from '@/shared/lib/youtube';
+import {
+  pickChunksByIndexes,
+  selectCitationIndexes,
+} from './rag-citation-filter';
 import { coerceChunkDistance } from './rag-distance';
 import {
   NO_MATCH_REPLY,
@@ -30,7 +35,7 @@ export class RagService {
   constructor(
     private readonly aiService: AiService,
     private readonly chunkRepository: ChunkRepository,
-    private readonly envService: EnvService,
+    @Inject(EnvService) private readonly envService: EnvService,
   ) {}
 
   async ask(
@@ -47,9 +52,9 @@ export class RagService {
     const trimmedHistory = this.trimHistory(history, envs.RAG_MAX_HISTORY_MESSAGES);
     const historyMessages = this.toAiMessages(trimmedHistory);
 
-    const { response: topicCheck } = await this.aiService.callStructuredOutput({
+    const topicCheck = await callJsonOutput(this.aiService, {
       aiModel: chatModel,
-      systemPrompt: OFF_TOPIC_CLASSIFIER_SYSTEM,
+      systemPrompt: `${OFF_TOPIC_CLASSIFIER_SYSTEM}\n\nFormato JSON: {"offTopic": boolean}`,
       messages: [
         ...historyMessages,
         AIMessages.human(trimmed),
@@ -58,7 +63,7 @@ export class RagService {
       modelConfig: { temperature: 0 },
     });
 
-    if (topicCheck.offTopic) {
+    if (topicCheck?.offTopic) {
       const { text } = await this.aiService.call({
         aiModel: chatModel,
         systemPrompt: OFF_TOPIC_REPLY_SYSTEM,
@@ -88,7 +93,6 @@ export class RagService {
       };
     }
 
-    const citations = this.buildCitations(relevant, envs.RAG_MAX_QUOTE_CHARS);
     const contextBlock = this.formatContextBlock(relevant);
 
     const { text } = await this.aiService.call({
@@ -101,8 +105,21 @@ export class RagService {
       modelConfig: { temperature: 0.5 },
     });
 
+    const citationIndexes = await selectCitationIndexes(
+      this.aiService,
+      chatModel,
+      trimmed,
+      text,
+      relevant,
+    );
+    const citedChunks = pickChunksByIndexes(relevant, citationIndexes);
+    const citations = this.buildCitations(
+      citedChunks,
+      envs.RAG_MAX_QUOTE_CHARS,
+    );
+
     this.logger.debug(
-      `RAG answer: ${relevant.length} chunks, best distance ${relevant[0]?.distance.toFixed(4)}`,
+      `RAG answer: ${relevant.length} chunks retrieved, ${citations.length} citations [${citationIndexes.join(',')}], best distance ${relevant[0]?.distance.toFixed(4)}`,
     );
 
     return { reply: text, citations };

@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -11,7 +12,7 @@ const HEADER_NAME = 'x-ingest-secret';
 
 @Injectable()
 export class IngestSecretGuard implements CanActivate {
-  constructor(private readonly envService: EnvService) {}
+  constructor(@Inject(EnvService) private readonly envService: EnvService) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<{

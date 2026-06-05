@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -32,7 +33,7 @@ export class IngestionService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly envService: EnvService,
+    @Inject(EnvService) private readonly envService: EnvService,
     private readonly pipeline: IngestionPipelineService,
     private readonly ytDlp: YtDlpService,
   ) {}
