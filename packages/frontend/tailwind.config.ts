@@ -23,7 +23,10 @@ export default {
         },
       },
       maxWidth: {
-        shell: '440px',
+        shell: 'min(960px, 92vw)',
+      },
+      minHeight: {
+        shell: 'min(80vh, 900px)',
       },
       borderRadius: {
         shell: '28px',

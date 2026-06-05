@@ -39,7 +39,7 @@ export function ChatComposer({
         <button
           type="submit"
           disabled={disabled}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-choque-accent text-lg text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="choque-focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-choque-accent text-lg text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Enviar pergunta"
         >
           ↑

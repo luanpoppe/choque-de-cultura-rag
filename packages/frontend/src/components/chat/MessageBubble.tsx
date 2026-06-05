@@ -1,3 +1,4 @@
+import { CitationCard } from '@/components/citation/CitationCard';
 import type { ChatMessage } from '@/lib/api/chat.types';
 
 type MessageBubbleProps = {
@@ -17,11 +18,27 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     );
   }
 
+  const showCitations =
+    !message.noMatch &&
+    !message.offTopic &&
+    message.citations &&
+    message.citations.length > 0;
+
   return (
     <div className="max-w-full self-start" role="article" aria-label="Resposta do agente">
       <div className="rounded-[22px_22px_22px_6px] border border-[var(--choque-agent-bubble-border)] bg-[var(--choque-agent-bubble)] px-[18px] py-3.5 text-[15px] leading-relaxed text-[var(--choque-agent-bubble-text)]">
         {message.content}
       </div>
+      {showCitations ? (
+        <div className="mt-3 flex flex-col gap-3" aria-label="Citações">
+          {message.citations!.map((citation, index) => (
+            <CitationCard
+              key={`${citation.youtubeVideoId}-${citation.startSec}-${index}`}
+              citation={citation}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
