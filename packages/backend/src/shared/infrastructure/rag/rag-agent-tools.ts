@@ -3,11 +3,12 @@ import z from 'zod';
 import type { AiService } from '@infrastructure/ai/ai.service';
 import type { ChunkRepository } from '@infrastructure/vector-store/chunk.repository';
 import type { SimilarChunkWithEpisode } from '@infrastructure/vector-store/chunk.repository';
+import { buildChunkContextText } from './rag-chunk-neighbors';
 import { coerceChunkDistance } from './rag-distance';
 import { RagSearchSession } from './rag-search-session';
 import { MAX_CITATION_CARDS } from './rag-unified-response';
 
-const TEXT_PREVIEW_CHARS = 400;
+const TEXT_PREVIEW_CHARS = 600;
 
 export type RagAgentToolConfig = {
   session: RagSearchSession;
@@ -16,13 +17,24 @@ export type RagAgentToolConfig = {
   topK: number;
   maxDistance: number;
   maxSearches: number;
+  neighborChunks: number;
 };
 
-function formatSearchResult(chunk: SimilarChunkWithEpisode) {
-  const text =
-    chunk.text.length <= TEXT_PREVIEW_CHARS
-      ? chunk.text
-      : `${chunk.text.slice(0, TEXT_PREVIEW_CHARS - 1).trimEnd()}…`;
+function previewText(text: string): string {
+  if (text.length <= TEXT_PREVIEW_CHARS) return text;
+  return `${text.slice(0, TEXT_PREVIEW_CHARS - 1).trimEnd()}…`;
+}
+
+async function formatSearchResult(
+  chunk: SimilarChunkWithEpisode,
+  chunkRepository: ChunkRepository,
+  neighborChunks: number,
+) {
+  const contextText = await buildChunkContextText(
+    chunk,
+    chunkRepository,
+    neighborChunks,
+  );
 
   return {
     chunkId: chunk.id,
@@ -31,7 +43,8 @@ function formatSearchResult(chunk: SimilarChunkWithEpisode) {
     startSec: chunk.startSec,
     endSec: chunk.endSec,
     distance: Number(coerceChunkDistance(chunk.distance).toFixed(4)),
-    text,
+    text: previewText(chunk.text),
+    contextText: previewText(contextText),
   };
 }
 
@@ -63,7 +76,7 @@ export function createRagAgentTools(config: RagAgentToolConfig) {
   const searchArchive = aiTools.createTool({
     name: 'search_archive',
     description:
-      'Busca semântica no acervo indexado do Choque de Cultura. Reformule a query se os resultados não forem úteis. Retorna chunkId, metadados e trecho.',
+      'Busca semântica no acervo indexado do Choque de Cultura. Retorna chunkId, metadados, trecho do match (text) e contexto expandido (contextText) com chunks vizinhos no mesmo episódio.',
     schema: searchArchiveInputSchema,
     toolFunction: async (input: unknown) => {
       const { query } = searchArchiveInputSchema.parse(input);
@@ -87,6 +100,16 @@ export function createRagAgentTools(config: RagAgentToolConfig) {
 
       config.session.registerChunks(relevant);
 
+      const results = await Promise.all(
+        relevant.map((chunk) =>
+          formatSearchResult(
+            chunk,
+            config.chunkRepository,
+            config.neighborChunks,
+          ),
+        ),
+      );
+
       return JSON.stringify({
         searchNumber: config.session.searchCount,
         query,
@@ -95,11 +118,11 @@ export function createRagAgentTools(config: RagAgentToolConfig) {
           relevant[0] != null
             ? Number(coerceChunkDistance(relevant[0].distance).toFixed(4))
             : null,
-        results: relevant.map(formatSearchResult),
+        results,
         hint:
           relevant.length === 0
             ? 'Nenhum trecho relevante. Tente query diferente ou submit_answer informando que não encontrou.'
-            : 'Se insuficiente, chame search_archive com outra query antes de submit_answer.',
+            : 'Leia contextText para entender a fala; cite só chunkId do trecho que prova a reply.',
       });
     },
   });

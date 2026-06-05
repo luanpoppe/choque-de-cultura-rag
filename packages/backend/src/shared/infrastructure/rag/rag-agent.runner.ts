@@ -15,6 +15,7 @@ export type RagAgentRunParams = {
   topK: number;
   maxDistance: number;
   maxSearches: number;
+  neighborChunks: number;
 };
 
 export type RagAgentRunResult = {
@@ -43,6 +44,7 @@ export class RagAgentRunner {
       topK: params.topK,
       maxDistance: params.maxDistance,
       maxSearches: params.maxSearches,
+      neighborChunks: params.neighborChunks,
     });
 
     this.logger.log(

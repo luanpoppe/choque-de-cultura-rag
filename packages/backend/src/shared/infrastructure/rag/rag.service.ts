@@ -1,8 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AIMessages, type AICallParams, type AIModelNames } from '@luanpoppe/ai';
 import { EnvService } from '@core/env.service';
+import { ChunkRepository } from '@infrastructure/vector-store/chunk.repository';
 import type { SimilarChunkWithEpisode } from '@infrastructure/vector-store/chunk.repository';
 import { buildWatchUrl } from '@/shared/lib/youtube';
+import { buildChunkContextText } from './rag-chunk-neighbors';
 import { RagAgentRunner } from './rag-agent.runner';
 import type {
   ChatHistoryMessage,
@@ -16,6 +18,7 @@ export class RagService {
 
   constructor(
     private readonly ragAgentRunner: RagAgentRunner,
+    private readonly chunkRepository: ChunkRepository,
     @Inject(EnvService) private readonly envService: EnvService,
   ) {}
 
@@ -44,6 +47,7 @@ export class RagService {
       topK: envs.RAG_TOP_K,
       maxDistance: envs.RAG_MAX_DISTANCE,
       maxSearches: envs.RAG_AGENT_MAX_SEARCHES,
+      neighborChunks: envs.RAG_NEIGHBOR_CHUNKS,
     });
 
     this.logger.log(
@@ -66,7 +70,10 @@ export class RagService {
       };
     }
 
-    const citations = this.buildCitations(agentResult.citedChunks);
+    const citations = await this.buildCitations(
+      agentResult.citedChunks,
+      envs.RAG_NEIGHBOR_CHUNKS,
+    );
 
     return { reply: agentResult.reply, citations };
   }
@@ -80,19 +87,29 @@ export class RagService {
     return history.slice(-maxMessages);
   }
 
-  private buildCitations(chunks: SimilarChunkWithEpisode[]): RagCitation[] {
+  private async buildCitations(
+    chunks: SimilarChunkWithEpisode[],
+    neighborChunks: number,
+  ): Promise<RagCitation[]> {
     const seen = new Set<string>();
     const citations: RagCitation[] = [];
     for (const chunk of chunks) {
       if (seen.has(chunk.id)) continue;
       seen.add(chunk.id);
-      citations.push(this.chunkToCitation(chunk));
+      citations.push(await this.chunkToCitation(chunk, neighborChunks));
     }
     return citations;
   }
 
-  private chunkToCitation(chunk: SimilarChunkWithEpisode): RagCitation {
-    const quote = chunk.text;
+  private async chunkToCitation(
+    chunk: SimilarChunkWithEpisode,
+    neighborChunks: number,
+  ): Promise<RagCitation> {
+    const quote = await buildChunkContextText(
+      chunk,
+      this.chunkRepository,
+      neighborChunks,
+    );
 
     const citation: RagCitation = {
       episodeTitle: chunk.episodeTitle,

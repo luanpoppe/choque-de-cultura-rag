@@ -7,6 +7,7 @@ jest.mock('@luanpoppe/ai', () => ({
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { EnvService } from '@core/env.service';
+import { ChunkRepository } from '@infrastructure/vector-store/chunk.repository';
 import type { SimilarChunkWithEpisode } from '@infrastructure/vector-store/chunk.repository';
 import { NO_MATCH_REPLY } from './rag-prompts';
 import { RagAgentRunner } from './rag-agent.runner';
@@ -24,6 +25,7 @@ const mockEnvs = {
   RAG_MAX_DISTANCE: 0.85,
   RAG_MAX_HISTORY_MESSAGES: 20,
   RAG_AGENT_MAX_SEARCHES: 4,
+  RAG_NEIGHBOR_CHUNKS: 2,
   SWAGGER_EXPOSE_INTERNAL: false,
 };
 
@@ -45,6 +47,7 @@ const sampleChunk = (
 describe('RagService', () => {
   let service: RagService;
   let ragAgentRunner: { run: jest.Mock };
+  let chunkRepository: { findTemporalNeighbors: jest.Mock };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -55,11 +58,15 @@ describe('RagService', () => {
         searchCount: 1,
       }),
     };
+    chunkRepository = {
+      findTemporalNeighbors: jest.fn().mockResolvedValue({ before: [], after: [] }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RagService,
         { provide: RagAgentRunner, useValue: ragAgentRunner },
+        { provide: ChunkRepository, useValue: chunkRepository },
         { provide: EnvService, useValue: { getEnvs: () => mockEnvs } },
       ],
     }).compile();
@@ -155,6 +162,19 @@ describe('RagService', () => {
       .filter((c) => c.startsWith('msg-'));
     expect(historyContents).toHaveLength(20);
     expect(historyContents[0]).toBe('msg-5');
+  });
+
+  it('expande quote da citação com chunks vizinhos', async () => {
+    chunkRepository.findTemporalNeighbors.mockResolvedValueOnce({
+      before: [{ id: 'b1', text: 'Antes.', startSec: 55, endSec: 59 }],
+      after: [],
+    });
+
+    const result = await service.ask('O que falaram de Harry Potter?');
+
+    expect(result.citations[0].quote).toBe(
+      'Antes. Harry Potter sem Harry Potter foi o tema do episódio.',
+    );
   });
 
   it('deve incluir history nas mensagens do agente', async () => {

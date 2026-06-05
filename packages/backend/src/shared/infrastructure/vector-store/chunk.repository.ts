@@ -26,6 +26,13 @@ export type SimilarChunkWithEpisode = SimilarChunk & {
   durationSec: number | null;
 };
 
+export type ChunkNeighbor = {
+  id: string;
+  text: string;
+  startSec: number;
+  endSec: number;
+};
+
 export const EMBEDDING_DIMENSION = 1536;
 
 @Injectable()
@@ -112,5 +119,53 @@ export class ChunkRepository {
         LIMIT ${limit}
       `,
     );
+  }
+
+  /** Chunks imediatamente antes/depois no mesmo episódio (por start_sec). */
+  async findTemporalNeighbors(
+    episodeId: string,
+    startSec: number,
+    options: { before?: number; after?: number } = {},
+  ): Promise<{ before: ChunkNeighbor[]; after: ChunkNeighbor[] }> {
+    const beforeCount = options.before ?? 0;
+    const afterCount = options.after ?? 0;
+
+    const before =
+      beforeCount > 0
+        ? await this.prisma.$queryRaw<ChunkNeighbor[]>(
+            Prisma.sql`
+              SELECT
+                id,
+                text,
+                start_sec AS "startSec",
+                end_sec AS "endSec"
+              FROM chunks
+              WHERE episode_id = ${episodeId}::uuid
+                AND start_sec < ${startSec}
+              ORDER BY start_sec DESC
+              LIMIT ${beforeCount}
+            `,
+          )
+        : [];
+
+    const after =
+      afterCount > 0
+        ? await this.prisma.$queryRaw<ChunkNeighbor[]>(
+            Prisma.sql`
+              SELECT
+                id,
+                text,
+                start_sec AS "startSec",
+                end_sec AS "endSec"
+              FROM chunks
+              WHERE episode_id = ${episodeId}::uuid
+                AND start_sec > ${startSec}
+              ORDER BY start_sec ASC
+              LIMIT ${afterCount}
+            `,
+          )
+        : [];
+
+    return { before: before.reverse(), after };
   }
 }

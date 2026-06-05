@@ -100,9 +100,9 @@ Similaridade por `<=>` no mesmo banco da aplicação. Jobs de ingestão e status
 
 ### 3. Chunking híbrido na ingestão
 
-- Primeiros `INGEST_FINE_GRAINED_HEAD_SEC` (default **180s**): **1 segmento Whisper = 1 chunk** (melhor para memes e falas curtas no início do vídeo).
-- Depois: janelas de `INGEST_CHUNK_DURATION_SEC` (default **30s**) com overlap ~10–15%.
-- `transcript_segments` guarda segmentos STT; chunks referenciam `start_sec` / `end_sec` para links `?t=` no YouTube.
+- Primeiros `INGEST_FINE_GRAINED_HEAD_SEC` (default **180s**): **1 segmento Whisper = 1 chunk ancorado** no timestamp (melhor para memes e falas curtas); texto do chunk inclui ±`INGEST_HEAD_CONTEXT_SEC` (default **20s**) de fala vizinha.
+- Depois: janelas de `INGEST_CHUNK_DURATION_SEC` (default **30s**) com overlap **`INGEST_OVERLAP_RATIO`** (default **25%**).
+- `transcript_segments` guarda segmentos STT; chunks referenciam `start_sec` / `end_sec` para links `?t=` no YouTube. Mudanças nas envs de chunking exigem **reingest**.
 
 ### 4. RAG como agente com tools (não retrieval fixo)
 
@@ -110,10 +110,10 @@ O fluxo antigo “embed → top-k → um prompt” foi substituído por **`RagAg
 
 | Tool | Função |
 |------|--------|
-| `search_archive` | `embedQuery` + top-k + threshold; até `RAG_AGENT_MAX_SEARCHES` (default 4) reformulações por turno |
+| `search_archive` | `embedQuery` + top-k + threshold; até `RAG_AGENT_MAX_SEARCHES` (default 4) reformulações; retorna `text` + **`contextText`** (±`RAG_NEIGHBOR_CHUNKS` vizinhos no episódio) |
 | `submit_answer` | Encerra com `offTopic`, `reply`, `citationChunkIds` |
 
-Citações só de chunks **efetivamente recuperados** na sessão (máx. 3 cards). Contrato HTTP inalterado: `{ reply, citations[], noMatch?, offTopic? }`.
+Citações só de chunks **efetivamente recuperados** na sessão (máx. 3 cards). O `quote` nos cards usa o mesmo contexto expandido; `startSec`/`watchUrl` apontam para o chunk citado. Contrato HTTP inalterado: `{ reply, citations[], noMatch?, offTopic? }`.
 
 ### 5. Guardrails explícitos
 
@@ -352,9 +352,9 @@ Similarity search via `<=>` in the same database as the app. Ingestion jobs and 
 
 ### 3. Hybrid chunking on ingestion
 
-- First `INGEST_FINE_GRAINED_HEAD_SEC` (default **180s**): **1 Whisper segment = 1 chunk** (better for memes and short lines at the start of videos).
-- Then: `INGEST_CHUNK_DURATION_SEC` windows (default **30s**) with ~10–15% overlap.
-- `transcript_segments` stores STT segments; chunks reference `start_sec` / `end_sec` for YouTube `?t=` links.
+- First `INGEST_FINE_GRAINED_HEAD_SEC` (default **180s**): **1 Whisper segment = 1 anchored chunk** (better for memes and short lines); chunk text includes ±`INGEST_HEAD_CONTEXT_SEC` (default **20s**) of neighboring speech.
+- Then: `INGEST_CHUNK_DURATION_SEC` windows (default **30s**) with **`INGEST_OVERLAP_RATIO`** overlap (default **25%**).
+- `transcript_segments` stores STT segments; chunks reference `start_sec` / `end_sec` for YouTube `?t=` links. Changing chunking env vars requires **reingest**.
 
 ### 4. RAG as an agent with tools (not fixed retrieval)
 
@@ -362,10 +362,10 @@ The old “embed → top-k → single prompt” flow was replaced by **`RagAgent
 
 | Tool | Role |
 |------|------|
-| `search_archive` | `embedQuery` + top-k + threshold; up to `RAG_AGENT_MAX_SEARCHES` (default 4) query reformulations per turn |
+| `search_archive` | `embedQuery` + top-k + threshold; up to `RAG_AGENT_MAX_SEARCHES` (default 4) reformulations; returns `text` + **`contextText`** (±`RAG_NEIGHBOR_CHUNKS` neighbors in the episode) |
 | `submit_answer` | Ends with `offTopic`, `reply`, `citationChunkIds` |
 
-Citations only from chunks **actually retrieved** in the session (max 3 cards). HTTP contract unchanged: `{ reply, citations[], noMatch?, offTopic? }`.
+Citations only from chunks **actually retrieved** in the session (max 3 cards). Card `quote` uses the same expanded context; `startSec`/`watchUrl` point at the cited chunk. HTTP contract unchanged: `{ reply, citations[], noMatch?, offTopic? }`.
 
 ### 5. Explicit guardrails
 
