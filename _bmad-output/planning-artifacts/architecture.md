@@ -207,7 +207,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 }
 ```
 
-**Retrieval:** top-k **6** chunks (default); sem re-rank de embedding na v1. **Citation filter:** após a resposta, LLM seleciona índices dos trechos que sustentam a resposta (`rag-citation-filter.ts`); fallback ao chunk `[1]` se falhar.
+**Retrieval:** agente RAG com **tool `search_archive`** — o LLM escolhe a query e pode repetir a busca (até `RAG_AGENT_MAX_SEARCHES`, default 4) antes de `submit_answer`. Cada busca: embed + top-k **6** (default) via pgvector + threshold `RAG_MAX_DISTANCE`. Tool **`submit_answer`**: off-topic + `reply` + `citationChunkIds` (máx. **3** cards). `noMatch` se o agente não chamar `submit_answer` ou falhar. **`quote`:** texto integral do chunk indexado (sem truncar no backend); UI exibe o trecho completo (sem `line-clamp` no card).
 
 ### Frontend Architecture
 
@@ -369,7 +369,7 @@ utils/custom-hooks/     # useIsLoading (existente)
 
 **Validação:** Zod na borda HTTP; regras de negócio (ex. acervo vazio) no service com mensagens PT-BR
 
-**Logs:** Nest `Logger` com contexto `[IngestionJob:{id}]`, `[Episode:{youtubeVideoId}]`
+**Logs:** Nest `Logger`; interceptor HTTP global (`LoggingInterceptor` → contexto `HTTP`); ingestão com `[IngestionJob:{id}] [Episode:{youtubeVideoId}]`; RAG loga ask/retrieval/citações; nível via `LOG_LEVEL` env (default `log`, `debug` para detalhes por chunk).
 
 ### Enforcement Guidelines
 

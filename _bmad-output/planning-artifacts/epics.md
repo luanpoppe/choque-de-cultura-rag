@@ -90,12 +90,13 @@ NFR-10: Smoke metrics — SM-1 citação verificável; SM-2 ≥5 episódios inde
 - **Brownfield:** estender monorepo existente (NestJS 11.1.24, Next 15.5.19); não recriar apps.
 - **Epic 1 Story 1 (arquitetura):** `docker-compose.yml` com `pgvector/pgvector:pg16`; Prisma 7.8.0; migration `CREATE EXTENSION vector`; dimensão `vector(n)` conforme modelo de embedding.
 - **Camadas backend:** `core/` · `shared/infrastructure/` (prisma, vector-store, ai, rag) · `modules/` (ingestion, chat, onboarding, episodes); alias `@infrastructure/*`.
-- **Ingestão:** `POST /api/internal/ingest` com `X-Ingest-Secret`; `202` + `jobId`; worker in-process; status `GET /api/internal/ingest/:jobId`.
+- **Ingestão:** `POST /api/internal/ingest` com `X-Ingest-Secret`; `202` + `jobId`; worker in-process; status `GET /api/internal/ingest/:jobId`; logs de etapa no stdout (`[IngestionJob:{id}] [Episode:{videoId}]`).
+- **Observabilidade backend:** `LOG_LEVEL` env; interceptor HTTP (`HTTP`); RAG loga ask/retrieval/citações; scripts `archive:validate` e `reingest:force`.
 - **Sem Redis v1** — jobs/status no Postgres.
 - **Vector search:** TypedSQL ou `$queryRaw` com operador `<=>`; não Prisma ORM puro para similarity.
 - **Contrato API chat:** `POST /api/chat` → `{ reply, citations[], noMatch?, offTopic? }`; `history` do client.
 - **Onboarding API:** `POST /api/onboarding/suggestions` → `{ suggestions: string[] }`.
-- **Retrieval:** top-k default 6; sem re-rank de embedding v1; filtro LLM de citações pós-resposta (só cards relevantes à pergunta).
+- **Retrieval:** agente com tools (`search_archive` + `submit_answer`); top-k default 6 por busca; até `RAG_AGENT_MAX_SEARCHES` buscas por turno; sem re-rank de embedding v1.
 - **Whisper:** API paga barata (ex. OpenAI whisper-1) via `@luanpoppe/ai` quando suportado.
 - **YouTube:** yt-dlp para áudio/metadados; link `?t=startSec`.
 - **Deploy:** Vercel (front) + container Nest + Postgres gerenciado com pgvector.
@@ -253,6 +254,7 @@ So that **possa indexar o acervo em deploy público sem abuso**.
 **Then** recebo `202` com `{ jobId }` e job processa em background (FR-1)  
 **And** requisição sem secret retorna `401` ou `403` (NFR-5)  
 **And** `GET /api/internal/ingest/:jobId` com mesmo secret retorna status, contagem e erros por episódio (FR-5)  
+**And** o pipeline emite logs de etapa no stdout (`[IngestionJob:{id}] [Episode:{videoId}]`) para acompanhamento em tempo real  
 **And** re-ingestão do mesmo `youtubeVideoId` é idempotente (skip ou `force` documentado)  
 **And** endpoint não aparece no Swagger público em produção (configurável)
 
@@ -293,10 +295,10 @@ So that **eu confie que as citações são reais**.
 **Given** chunks indexados no vector store  
 **When** `RagService` em `shared/infrastructure/rag` recebe pergunta + history opcional  
 **Then** gera embedding da pergunta via `AiService`  
-**And** recupera top-k=6 chunks via `ChunkRepository.searchSimilar`  
-**And** monta prompt com contexto e instruções de domínio Choque de Cultura  
+**And** o agente invoca `search_archive` (top-k=6 por busca; até `RAG_AGENT_MAX_SEARCHES` reformulações)  
+**And** encerra com `submit_answer` (escopo off-topic + reply + citationChunkIds)  
 **And** retorna estrutura `{ reply, citations[], noMatch?, offTopic? }` conforme contrato da arquitetura  
-**And** `citations[]` inclui apenas trechos que sustentam a resposta (filtro LLM após geração; não todos os chunks do top-k)  
+**And** `citations[]` inclui apenas trechos que sustentam a resposta (chunkIds escolhidos pelo agente)  
 **And** sem chunks relevantes → `noMatch: true`, `citations: []` (FR-7)  
 **And** pergunta off-topic → `offTopic: true`, sem cards fabricados (FR-12)  
 **And** history do client é considerada para follow-up (FR-10)
@@ -329,6 +331,21 @@ So that **a demo pública não estoure custo de API**.
 **When** um IP excede ~20 req/min no `POST /api/chat`  
 **Then** recebe `429` com mensagem clara  
 **And** limite configurável via env (NFR-6)
+
+### Story 2.5: RAG agente com tool de busca *(2026-06-05)*
+
+As a **visitante do chat**,  
+I want **que o agente busque no acervo com liberdade (inclusive várias tentativas)**,  
+So that **perguntas difíceis (frases literais, sinônimos) encontrem trechos relevantes**.
+
+**Acceptance Criteria:**
+
+**Given** `RagAgentRunner` com tools LangChain  
+**When** o usuário faz uma pergunta on-topic  
+**Then** o modelo pode chamar `search_archive` até `RAG_AGENT_MAX_SEARCHES` vezes com queries distintas  
+**And** cada busca usa embedding + top-k + threshold  
+**And** o turno encerra com `submit_answer` (offTopic, reply, citationChunkIds)  
+**And** `RagService.ask` mantém o contrato HTTP existente
 
 ### Story 2.4: Enriquecimento speaker/contexto *(Stretch v1)*
 

@@ -38,6 +38,8 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 
 **Dev:** `pnpm dev` na raiz sobe backend + frontend em paralelo.
 
+**Logs:** `LOG_LEVEL` (`error`|`warn`|`log`|`debug`|`verbose`, default `log`); interceptor HTTP global (`HTTP`); ingestão `[IngestionJob:{id}] [Episode:{videoId}]`; RAG loga ask, buscas do agente e citações. Use `LOG_LEVEL=debug` para detalhes por chunk. Env `RAG_AGENT_MAX_SEARCHES` (default 4) limita chamadas à tool `search_archive`.
+
 **Produto (brief aprovado):** RAG sobre episódios do Choque de Cultura (YouTube). PoC: ~5–10 episódios mais antigos. Referência: `_bmad-output/planning-artifacts/briefs/brief-choque-de-cultura-rag-2026-06-03/`.
 
 ---
@@ -84,8 +86,9 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 - Respostas RAG devem incluir **vídeo + timestamp** (título, URL, momento).
 - Guardrails: agente responde **somente** sobre Choque de Cultura; off-topic → recusa educada.
 - **Onboarding:** `POST /api/onboarding/suggestions` amostra chunks do DB e gera perguntas curtas via `callJsonOutput` (`AiService.call` + JSON, não `callStructuredOutput` — DeepSeek thinking não suporta `tool_choice`); fallback em `onboarding-suggestion.builder.ts` se a IA falhar.
-- **Classificador off-topic (RAG):** mesmo padrão `callJsonOutput` em `ai-json-call.ts`.
-- **Filtro de Citation Cards (RAG):** `rag-citation-filter.ts` — após a resposta, IA escolhe quais trechos do top-k viram cards (não listar todos os chunks recuperados).
+- **RAG (chat):** agente LangChain via `AiService.call` + `agent.tools` (`RagAgentRunner`). Tools: **`search_archive`** (embedding + pgvector; o modelo decide query e pode buscar até `RAG_AGENT_MAX_SEARCHES` vezes) e **`submit_answer`** (off-topic + reply + `citationChunkIds`). `RagService.ask` monta Citation Cards a partir dos chunkIds válidos da sessão.
+- **`rag-unified-response.ts` / `rag-citation-filter.ts`:** legado da iteração unificada (1× `callJsonOutput`); mantidos para helpers e testes — fluxo de produção usa agente com tools desde 2026-06-05.
+- **Trecho no card:** `citations[].quote` = `chunk.text` completo do banco; `CitationCard` sem truncamento CSS (`line-clamp`).
 - Ingestão v1: episódios **mais antigos** primeiro (~5–10).
 
 ### Testing Rules
@@ -160,4 +163,4 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 - Atualize quando a stack mudar (ex.: após decisão de arquitetura).
 - Remova regras que ficarem óbvias com o tempo.
 
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-06-05

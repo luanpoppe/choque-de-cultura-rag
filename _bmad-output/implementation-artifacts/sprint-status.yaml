@@ -33,6 +33,7 @@ development_status:
   1-6-timestamps-reais-ingestao: done
   epic-2: done
   2-1-rag-service-retrieval: done
+  2-5-rag-agent-tools: done
   2-2-chat-api: done
   2-3-rate-limit-chat: done
   2-4-speaker-attribution-stretch: backlog
@@ -46,5 +47,5 @@ development_status:
   3-7-panorama-stretch: done
   3-8-nova-conversa-shell-expandido: done
 
-last_updated: 2026-06-04
-# Story 1.6 done; reingest 5 eps + docs sync (chunk 30s, @luanpoppe/ai 1.1.6)
+last_updated: 2026-06-05
+# Story 2.5: RAG agente com search_archive tool (multi-busca)
