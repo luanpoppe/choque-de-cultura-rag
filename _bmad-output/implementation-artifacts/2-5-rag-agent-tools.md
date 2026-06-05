@@ -50,3 +50,9 @@ para encontrar trechos mesmo quando a primeira busca semântica não basta.
 
 - 2026-06-05: RAG agente com tools `search_archive` + `submit_answer`; multi-busca configurável.
 - 2026-06-05: Contexto de vizinhos (`contextText`, `RAG_NEIGHBOR_CHUNKS`) para agente e Citation Cards.
+
+### Review Findings
+
+- [x] [Review][Patch] Teste async de `buildChunkContextText` com `neighborCount > 0` e mock de `findTemporalNeighbors` [`rag-chunk-neighbors.spec.ts`]
+- [x] [Review][Defer] N+1 queries de vizinhos por resultado em `search_archive` (aceitável para demo; otimizar se p95 > 15s) — deferred, pre-existing após polish
+- [x] [Review][Defer] `findTemporalNeighbors` usa `start_sec` estrito (`<`/`>`); chunks com mesmo `startSec` na zona fina não são vizinhos entre si — deferred, edge case raro

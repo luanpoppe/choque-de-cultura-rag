@@ -1,0 +1,41 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": {
+    "started": "2026-06-05T18:00:00.000Z",
+    "last_updated": "2026-06-05T18:10:00.000Z",
+    "completed": "2026-06-05T18:10:00.000Z"
+  },
+  "mode": "initial_scan",
+  "scan_level": "quick",
+  "project_root": "c:/_pastas-disco-c/repositorios-c/projetos/choque-de-cultura-rag",
+  "project_knowledge": "docs",
+  "completed_steps": [
+    {"step": "step_1", "status": "completed", "summary": "Monorepo: backend (web) + frontend (web)"},
+    {"step": "step_2", "status": "completed", "summary": "README + _bmad-output existentes"},
+    {"step": "step_3", "status": "completed", "summary": "NestJS 11 + Next 15 + pgvector"},
+    {"step": "step_4", "status": "completed", "summary": "API e data models documentados"},
+    {"step": "step_5", "status": "completed", "summary": "source-tree-analysis.md"},
+    {"step": "step_6", "status": "completed", "summary": "development-guide.md"},
+    {"step": "step_7", "status": "completed", "summary": "integration-architecture.md"},
+    {"step": "step_9", "status": "completed", "summary": "project-overview.md"},
+    {"step": "step_10", "status": "completed", "summary": "index.md master"}
+  ],
+  "current_step": "complete",
+  "findings": {
+    "project_classification": "monorepo, 2 parts, TypeScript full-stack RAG",
+    "project_types": [
+      {"part_id": "backend", "project_type_id": "backend"},
+      {"part_id": "frontend", "project_type_id": "web"}
+    ]
+  },
+  "outputs_generated": [
+    "docs/index.md",
+    "docs/project-overview.md",
+    "docs/api-contracts-backend.md",
+    "docs/data-models-backend.md",
+    "docs/development-guide.md",
+    "docs/source-tree-analysis.md",
+    "docs/integration-architecture.md",
+    "docs/project-scan-report.json"
+  ]
+}
