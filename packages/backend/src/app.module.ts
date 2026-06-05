@@ -5,6 +5,7 @@ import { CoreModule } from './core/core.module';
 import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 import { ChatModule } from '@modules/chat/chat.module';
 import { IngestionModule } from '@modules/ingestion/ingestion.module';
+import { OnboardingModule } from '@modules/onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { IngestionModule } from '@modules/ingestion/ingestion.module';
     InfrastructureModule,
     IngestionModule,
     ChatModule,
+    OnboardingModule,
   ],
   controllers: [AppController],
 })

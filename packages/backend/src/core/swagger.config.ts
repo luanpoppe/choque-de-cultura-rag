@@ -7,5 +7,6 @@ export function createSwaggerConfig() {
     .setVersion('1.0')
     .addTag('api')
     .addTag('chat')
+    .addTag('onboarding')
     .build();
 }
