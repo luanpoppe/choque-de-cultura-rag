@@ -213,7 +213,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 
 | Decisão | Escolha | Rationale |
 |---|---|---|
-| Rota principal | **`/`** — chat único | EXPERIENCE.md |
+| Rotas públicas | **`/`** chat · **`/sobre`** contexto do programa (TV Quase, humor) e guia (FR-21) | EXPERIENCE.md |
 | Estado servidor | **Nenhum** (sem React Query obrigatório na v1) | PoC simples |
 | Sessão / tema | **`localStorage`** | FR-18, FR-19 |
 | HTTP | **axios** + `useIsLoading` | project-context |

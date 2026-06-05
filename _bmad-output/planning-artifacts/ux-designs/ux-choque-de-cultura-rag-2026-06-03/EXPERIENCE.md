@@ -31,7 +31,8 @@ sources:
 
 | Surface | Rota | Propósito |
 |---|---|---|
-| Chat | `/` (ou rota única equivalente) | Perguntar, receber respostas RAG, ver Citation Cards, onboarding |
+| Chat | `/` | Perguntar, receber respostas RAG, ver Citation Cards, onboarding |
+| Sobre | `/sobre` | Contexto do programa (TV Quase, personagens), humor interno, como usar o chat (FR-21) |
 | *(sem UI)* Ingestão | endpoint HTTP backend | Operador (Luan) indexa episódios — UJ-3, fora do frontend |
 
 **Layout de resposta:** **Inline (A)** — Citation Cards empilhados diretamente abaixo da bubble do agente, no fluxo de scroll. Revisitar split panel apenas se demo desktop exigir destaque extra (decisão fechada: inline).

@@ -63,6 +63,8 @@ FR-19: Sessões de chat persistidas em localStorage; restauradas no mesmo browse
 
 FR-20: Footer (ou equivalente) com link para repositório público do projeto.
 
+FR-21: Página **Sobre** (`/sobre`) em PT-BR explica o projeto, o programa Choque de Cultura (TV Quase, personagens/pilotos), humor interno/frases e limitações da demo; link visível a partir do chat.
+
 ### NonFunctional Requirements
 
 NFR-1: Custo — modelos econômicos via OpenRouter; evitar reprocessamento desnecessário na ingestão.
@@ -492,3 +494,24 @@ So that **eu comece outro tópico sem apagar dados do browser e use melhor a tel
 **Then** shell central usa **`min(960px, 92vw)`** de largura máxima e altura mínima **`min(80vh, 900px)`** — desvio documentado em relação ao **440px** da story 3.1 / DESIGN.md  
 
 **Implementação:** `_bmad-output/implementation-artifacts/3-8-nova-conversa-shell-expandido.md` — **done** (2026-06-03).
+
+### Story 3.9: Página Sobre e README do repositório *(2026-06-05)*
+
+As a **visitante que não conhece o podcast**,  
+I want **uma página que explique o Choque de Cultura e como ler as citações**,  
+So that **eu entenda o humor e use o chat com contexto (FR-21)**.
+
+As a **engenheiro avaliando o código**,  
+I want **um README com arquitetura e decisões técnicas**,  
+So that **eu entenda o pipeline RAG e o fluxo BMad spec-driven rapidamente**.
+
+**Acceptance Criteria:**
+
+**Given** rota `/sobre` no Next.js  
+**Then** conteúdo em PT-BR cobre: o app, o podcast, frases/humor interno, como usar o chat, limitações e transparência (demo não oficial)  
+**And** navegação Chat ↔ Sobre no header/footer do chat e `SiteHeader` na página Sobre  
+
+**Given** raiz do repositório  
+**Then** `README.md` documenta stack, diagrama, decisões, setup local, testes e `_bmad-output/`  
+
+**Implementação:** `_bmad-output/implementation-artifacts/3-9-about-page-readme.md` — **done** (2026-06-05).

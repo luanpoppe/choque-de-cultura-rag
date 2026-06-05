@@ -70,7 +70,7 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 
 **Next.js (frontend)**
 
-- App Router (`src/app/`); páginas interativas → `"use client"`.
+- App Router (`src/app/`); rotas públicas: `/` (chat), `/sobre` (contexto do programa Choque de Cultura + guia de uso). Páginas interativas → `"use client"`.
 - Navegação: `next/navigation` (`useRouter`, `usePathname`) — **nunca** `next/router` (bug no scaffold `signup/page.tsx`).
 - Requisições HTTP via **axios**; loading/erro via hook `useIsLoading` em `src/utils/custom-hooks/`.
 - Toasts via `react-hot-toast` (já no layout).

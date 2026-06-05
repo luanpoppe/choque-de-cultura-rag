@@ -59,7 +59,7 @@ para que possa indexar o acervo em deploy público sem abuso.
 ## Dev Notes
 
 - Disparo com IDs: `POST /api/internal/ingest` + header `X-Ingest-Secret`.
-- Canal automático: `CHOQUE_YOUTUBE_CHANNEL_URL` + body `{}` ou `{"limit":5}`.
+- Acervo automático: `CHOQUE_YOUTUBE_CHANNEL_URL` (playlist oficial ou canal `/videos`) + body `{}` ou `{"limit":5}`.
 
 ## Dev Agent Record
 

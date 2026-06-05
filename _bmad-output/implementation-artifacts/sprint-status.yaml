@@ -46,6 +46,8 @@ development_status:
   3-6-errors-a11y: done
   3-7-panorama-stretch: done
   3-8-nova-conversa-shell-expandido: done
+  3-9-about-page-readme: done
 
 last_updated: 2026-06-05
+# Story 3.9: página /sobre + README raiz
 # Story 2.5: RAG agente com search_archive tool (multi-busca)
