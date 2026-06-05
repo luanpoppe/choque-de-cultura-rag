@@ -32,7 +32,7 @@ describe('onboarding-suggestion.ai', () => {
     );
     expect(result).toHaveLength(2);
     expect(result[0]).toMatch(/\?$/);
-    expect(result.every((s) => s.length <= 68)).toBe(true);
+    expect(result.every((s) => s.length <= 60)).toBe(true);
   });
 
   it('retorna null quando a IA falha', async () => {
@@ -45,6 +45,18 @@ describe('onboarding-suggestion.ai', () => {
       3,
     );
     expect(result).toBeNull();
+  });
+
+  it('retorna lista vazia quando a IA não encontra temas', async () => {
+    callJson.mockResolvedValue({ suggestions: [] });
+
+    const result = await generateOnboardingSuggestionsWithAi(
+      {} as never,
+      'openrouter/deepseek/deepseek-v4-flash',
+      [{ text: 'trecho', title: 'Ep 1' }],
+      5,
+    );
+    expect(result).toEqual([]);
   });
 
   it('retorna sugestões da IA quando ok', async () => {

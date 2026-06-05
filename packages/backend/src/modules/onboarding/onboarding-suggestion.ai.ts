@@ -4,12 +4,12 @@ import { callJsonOutput } from '@infrastructure/ai/ai-json-call';
 import type { AiService } from '@infrastructure/ai/ai.service';
 import { ONBOARDING_SUGGESTIONS_SYSTEM } from './onboarding-suggestion.prompts';
 
-const MAX_SUGGESTION_CHARS = 68;
+const MAX_SUGGESTION_CHARS = 60;
 const MAX_SAMPLES_FOR_PROMPT = 8;
 const MAX_EXCERPT_CHARS = 280;
 
 const suggestionsSchema = z.object({
-  suggestions: z.array(z.string().min(8)).min(1),
+  suggestions: z.array(z.string().min(8)).min(0).max(6),
 });
 
 export type CorpusSample = {
@@ -72,10 +72,16 @@ export async function generateOnboardingSuggestionsWithAi(
   try {
     const response = await callJsonOutput(aiService, {
       aiModel: chatModel,
-      systemPrompt: `${ONBOARDING_SUGGESTIONS_SYSTEM}\n\nFormato JSON: {"suggestions": string[]}`,
+      systemPrompt: `${ONBOARDING_SUGGESTIONS_SYSTEM}\n\nFormato JSON (sem markdown): {"suggestions": string[]}`,
       messages: [
         AIMessages.human(
-          `Com base no acervo abaixo, gere exatamente ${limit} perguntas curtas e naturais para um visitante clicar no onboarding.\n\n${formatSamplesForPrompt(samples)}`,
+          [
+            'Entrada:',
+            '',
+            formatSamplesForPrompt(samples),
+            '',
+            `Gere as perguntas conforme as instruções. Use no máximo ${limit} itens se o acervo permitir (entre 3 e 6 quando houver contexto suficiente).`,
+          ].join('\n'),
         ),
       ],
       outputSchema: suggestionsSchema,
@@ -85,7 +91,8 @@ export async function generateOnboardingSuggestionsWithAi(
     if (!response) return null;
 
     const normalized = normalizeAiSuggestions(response.suggestions, limit);
-    return normalized.length > 0 ? normalized : null;
+    if (normalized.length === 0) return [];
+    return normalized;
   } catch {
     return null;
   }

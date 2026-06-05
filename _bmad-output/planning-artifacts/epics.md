@@ -29,7 +29,7 @@ FR-2: O sistema obtém metadados dos episódios alvo do canal Choque de Cultura 
 
 FR-3: O sistema obtém transcrição de cada episódio via Whisper a partir do áudio; falha isolada por episódio com motivo registrado.
 
-FR-4: O sistema divide transcrições em chunks (zona fina no início do vídeo: 1 segmento STT = 1 chunk; depois janelas configuráveis, default **30s**, overlap 10–15%), gera embeddings e persiste chunks + metadados temporais no vector store; acervo consultável pelo agente.
+FR-4: O sistema divide transcrições em chunks (zona fina no início: 1 segmento STT = 1 chunk **ancorado**, texto com ±`INGEST_HEAD_CONTEXT_SEC` de fala vizinha; depois janelas default **30s**, overlap **`INGEST_OVERLAP_RATIO`** default **25%**), gera embeddings e persiste chunks + metadados temporais no vector store; acervo consultável pelo agente.
 
 FR-5: O operador pode consultar status/logs da execução de ingestão (episódio, etapa, erro).
 
@@ -98,7 +98,7 @@ NFR-10: Smoke metrics — SM-1 citação verificável; SM-2 ≥5 episódios inde
 - **Vector search:** TypedSQL ou `$queryRaw` com operador `<=>`; não Prisma ORM puro para similarity.
 - **Contrato API chat:** `POST /api/chat` → `{ reply, citations[], noMatch?, offTopic? }`; `history` do client.
 - **Onboarding API:** `POST /api/onboarding/suggestions` → `{ suggestions: string[] }`.
-- **Retrieval:** agente com tools (`search_archive` + `submit_answer`); top-k default 6 por busca; até `RAG_AGENT_MAX_SEARCHES` buscas por turno; sem re-rank de embedding v1.
+- **Retrieval:** agente com tools (`search_archive` + `submit_answer`); top-k default 6 por busca; até `RAG_AGENT_MAX_SEARCHES` buscas por turno; resultados com `contextText` (±`RAG_NEIGHBOR_CHUNKS` vizinhos); sem re-rank de embedding v1.
 - **Whisper:** API paga barata (ex. OpenAI whisper-1) via `@luanpoppe/ai` quando suportado.
 - **YouTube:** yt-dlp para áudio/metadados; link `?t=startSec`.
 - **Deploy:** Vercel (front) + container Nest + Postgres gerenciado com pgvector.
@@ -238,7 +238,7 @@ So that **transcrições viram chunks embedados no vector store**.
 **Then** metadados YouTube são obtidos e persistidos (FR-2)  
 **And** áudio é extraído (yt-dlp), transcrito via Whisper API barata (FR-3)  
 **And** falha em um episódio registra motivo e não bloqueia os demais (FR-3)  
-**And** transcrição vira chunks via merge de segmentos STT (zona fina + janelas ~30s, overlap 10–15%) (FR-4)  
+**And** transcrição vira chunks via merge de segmentos STT (zona fina + contexto ±`INGEST_HEAD_CONTEXT_SEC` + janelas ~30s, overlap **25%**) (FR-4)  
 **And** embeddings são gerados via `AiService` e persistidos com `startSec`/`endSec` (FR-4)  
 **And** busca por similaridade funciona via TypedSQL/`$queryRaw` em `vector-store`  
 **And** áudio temporário é removido após transcrição
@@ -271,7 +271,7 @@ So that **eu não precise procurar manualmente no episódio**.
 **Given** episódio em ingestão  
 **When** o pipeline transcreve o áudio  
 **Then** segmentos STT com `start`/`end` reais são persistidos (`TranscriptSegment`) — fonte primária OpenAI `whisper-1` + `verbose_json` + granularidade `segment` (TR: OpenRouter STT não expõe segmentos)  
-**And** chunks são derivados por merge de segmentos (`INGEST_FINE_GRAINED_HEAD_SEC` + `INGEST_CHUNK_DURATION_SEC` default 30s, overlap 10–15%), não por repartição proporcional de palavras  
+**And** chunks são derivados por merge de segmentos (`INGEST_FINE_GRAINED_HEAD_SEC`, `INGEST_HEAD_CONTEXT_SEC`, `INGEST_CHUNK_DURATION_SEC` default 30s, `INGEST_OVERLAP_RATIO` default 0.25), não por repartição proporcional de palavras  
 **And** uma única passagem de STT por episódio (sem custo duplicado)  
 **And** `OPENAI_API_KEY` só na ingestão; chat/embeddings permanecem no OpenRouter  
 **And** re-ingestão com `force` atualiza segmentos + chunks  
@@ -316,7 +316,7 @@ So that **eu interaja com o agente pela interface web**.
 **Given** `ChatModule` em `modules/chat`  
 **When** envio `{ message, history? }` válido em PT-BR  
 **Then** recebo resposta no contrato documentado (FR-6, FR-8)  
-**And** cada citation inclui `episodeTitle`, `youtubeVideoId`, `startSec`, `quote`  
+**And** cada citation inclui `episodeTitle`, `youtubeVideoId`, `startSec`, `quote` (contexto expandido com chunks vizinhos quando `RAG_NEIGHBOR_CHUNKS` > 0)  
 **And** mensagem vazia retorna `400` com feedback claro (FR-6)  
 **And** endpoint documentado no Swagger  
 **And** latência aceitável para demo (NFR-2 — sem timeout prematuro no client)
@@ -346,7 +346,8 @@ So that **perguntas difíceis (frases literais, sinônimos) encontrem trechos re
 **When** o usuário faz uma pergunta on-topic  
 **Then** o modelo pode chamar `search_archive` até `RAG_AGENT_MAX_SEARCHES` vezes com queries distintas  
 **And** cada busca usa embedding + top-k + threshold  
-**And** o turno encerra com `submit_answer` (offTopic, reply, citationChunkIds)  
+**And** o turno encerra com `submit_answer` (offTopic, reply, citationChunkIds)
+**And** `search_archive` retorna `text` + `contextText` (±`RAG_NEIGHBOR_CHUNKS` vizinhos no episódio)
 **And** `RagService.ask` mantém o contrato HTTP existente
 
 ### Story 2.4: Enriquecimento speaker/contexto *(Stretch v1)*

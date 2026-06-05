@@ -29,7 +29,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 20 FRs em quatro domínios mapeiam para módulos NestJS + SPA Next.js:
 
-- **Ingestão (FR-1–5):** `POST` protegido dispara job assíncrono; pipeline YouTube → áudio → Whisper OpenAI via `@luanpoppe/ai` `AIAudio.transcribeDetailedOpenAI` (`verbose_json` + segmentos) → `transcript_segments` → chunks (merge de segmentos reais: **1 segmento = 1 chunk** nos primeiros `INGEST_FINE_GRAINED_HEAD_SEC`, depois janelas **`INGEST_CHUNK_DURATION_SEC`** default **30s**, overlap 10–15%) → embeddings → Postgres/pgvector. Chat/embeddings via OpenRouter (`AIEmbeddings`). Falhas isoladas por episódio; status e logs consultáveis (operador).
+- **Ingestão (FR-1–5):** `POST` protegido dispara job assíncrono; pipeline YouTube → áudio → Whisper OpenAI via `@luanpoppe/ai` `AIAudio.transcribeDetailedOpenAI` (`verbose_json` + segmentos) → `transcript_segments` → chunks (merge de segmentos reais: **1 segmento = 1 chunk ancorado** nos primeiros `INGEST_FINE_GRAINED_HEAD_SEC`, texto expandido com ±`INGEST_HEAD_CONTEXT_SEC`; depois janelas **`INGEST_CHUNK_DURATION_SEC`** default **30s**, overlap **`INGEST_OVERLAP_RATIO`** default **25%**) → embeddings → Postgres/pgvector. Chat/embeddings via OpenRouter (`AIEmbeddings`). Falhas isoladas por episódio; status e logs consultáveis (operador).
 - **Chat RAG (FR-6–11):** API REST; agente via `@luanpoppe/ai` + OpenRouter; resposta com `citations[]` para Citation Cards; multi-turn com `history` enviado pelo client (`localStorage`).
 - **Guardrails (FR-12):** domínio Choque de Cultura; off-topic sem citações fabricadas.
 - **Onboarding (FR-13–16):** amostras do acervo (chunks) + geração de sugestões via LLM (`AiService`, mesmo `CHAT_MODEL` do chat); fallback heurístico; chips clicáveis.
@@ -59,7 +59,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 |---|---|
 | Deploy | URL pública desde o início |
 | Vector store | **PostgreSQL + pgvector** (Docker local; gerenciado em prod) |
-| Chunking | **30 s** (configurável) após zona fina; **180 s** iniciais com 1 segmento STT = 1 chunk; **overlap 10–15%**; `start_sec` / `end_sec` obrigatórios |
+| Chunking | **30 s** (`INGEST_CHUNK_DURATION_SEC`) após zona fina; **180 s** iniciais com 1 segmento STT = 1 chunk **ancorado** + ±**20 s** (`INGEST_HEAD_CONTEXT_SEC`) de fala vizinha no texto; overlap **25%** (`INGEST_OVERLAP_RATIO`); `start_sec` / `end_sec` obrigatórios |
 | Redis | **Não na v1** — jobs/status de ingestão no Postgres; worker in-process no Nest |
 | Ingestão | Header **`X-Ingest-Secret`**; `202 Accepted` + `jobId`; status em endpoint interno |
 | Whisper | **API paga de baixo custo** (ex. OpenAI `whisper-1`); áudio temporário; sem Whisper local na v1 |
@@ -151,7 +151,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 | ORM | **Prisma 7.8.0** (`prisma` + `@prisma/client` alinhados) | Preferência explícita Luan; migrations e type-safety |
 | Vector search | **Migration SQL** `CREATE EXTENSION vector` + coluna `embedding` como `Unsupported("vector")` ou tabela gerida via migration raw; queries via **TypedSQL** ou `$queryRaw` com operador `<=>` | Prisma ainda não mapeia `vector` em schema de primeira classe; padrão oficial documentado |
 | Modelagem (conceitual) | `Episode`, `Chunk` (texto, `start_sec`, `end_sec`, embedding), `IngestionRun` / `IngestionJob` (status, erros) | Suporta FR-1–5, idempotência por `youtube_video_id` |
-| Chunking | **30 s** (`INGEST_CHUNK_DURATION_SEC`) + zona fina **180 s**; overlap **10–15%** | Ajustado pós-reingest 2026-06-04; segmentos STT reais (story 1.6) |
+| Chunking | **30 s** (`INGEST_CHUNK_DURATION_SEC`) + zona fina **180 s** + contexto ±**20 s** na zona fina; overlap **25%** | Segmentos STT reais (story 1.6); reingest após mudar envs de chunking |
 | Validação API | **Zod DTOs** (`nestjs-zod`) na borda HTTP; Prisma no persistence layer | Convenção existente do repo |
 | Cache | **Nenhum na v1** | Volume baixo; YAGNI |
 | Migrations | **Prisma Migrate** | Versionamento de schema + SQL customizado para pgvector |
@@ -207,7 +207,7 @@ Após subir DB: `CREATE EXTENSION IF NOT EXISTS vector;` (migration Prisma).
 }
 ```
 
-**Retrieval:** agente RAG com **tool `search_archive`** — o LLM escolhe a query e pode repetir a busca (até `RAG_AGENT_MAX_SEARCHES`, default 4) antes de `submit_answer`. Cada busca: embed + top-k **6** (default) via pgvector + threshold `RAG_MAX_DISTANCE`. Tool **`submit_answer`**: off-topic + `reply` + `citationChunkIds` (máx. **3** cards). `noMatch` se o agente não chamar `submit_answer` ou falhar. **`quote`:** texto integral do chunk indexado (sem truncar no backend); UI exibe o trecho completo (sem `line-clamp` no card).
+**Retrieval:** agente RAG com **tool `search_archive`** — o LLM escolhe a query e pode repetir a busca (até `RAG_AGENT_MAX_SEARCHES`, default 4) antes de `submit_answer`. Cada busca: embed + top-k **6** (default) via pgvector + threshold `RAG_MAX_DISTANCE`. Resultados expõem `text` (match) e **`contextText`** (±`RAG_NEIGHBOR_CHUNKS` chunks vizinhos no mesmo episódio, runtime — sem reingest). Tool **`submit_answer`**: off-topic + `reply` + `citationChunkIds` (máx. **3** cards). `noMatch` se o agente não chamar `submit_answer` ou falhar. **`quote`:** contexto expandido (mesma lógica de vizinhos); `startSec`/`watchUrl` permanecem no chunk citado; UI sem truncamento (`line-clamp`).
 
 ### Frontend Architecture
 

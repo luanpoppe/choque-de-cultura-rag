@@ -43,6 +43,7 @@ para confiar que as citações são reais.
 - **2026-06-05:** Logs em `log`/`debug` — ask, off-topic, noMatch, retrieval (distâncias) e citações escolhidas (`LOG_LEVEL=debug` para detalhe por chunk).
 - **2026-06-05:** Consolidadas 3 chamadas LLM on-topic em 1 (classificador + resposta + filtro de citações unificados).
 - **2026-06-05 (story 2.5):** Substituído fluxo unificado por **agente com tools** (`search_archive` + `submit_answer`); multi-busca via `RAG_AGENT_MAX_SEARCHES`.
+- **2026-06-05 (2.5 polish):** `contextText` / `RAG_NEIGHBOR_CHUNKS` — contexto de chunks vizinhos para agente e cards (runtime).
 - Sem endpoint HTTP (story 2.2).
 
 ### File List

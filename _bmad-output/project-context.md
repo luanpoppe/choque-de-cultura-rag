@@ -81,12 +81,12 @@ _Regras críticas para implementação neste projeto. Foco em detalhes não óbv
 - **Toda** integração de IA via `@luanpoppe/ai` — não chamar OpenAI/Gemini direto.
 - IA via **OpenRouter** (`OPENROUTER_API_KEY`): chat e embeddings.
 - Ingestão STT com timestamps: **OpenAI direto** via `AIAudio.transcribeDetailedOpenAI` (`OPENAI_API_KEY`, `whisper-1` + `verbose_json` segment) — OpenRouter STT só retorna `text`.
-- Chunking ingestão: `INGEST_FINE_GRAINED_HEAD_SEC` (default 180) = 1 segmento Whisper → 1 chunk; depois `INGEST_CHUNK_DURATION_SEC` (default **30**) com overlap 10–15%.
+- Chunking ingestão: `INGEST_FINE_GRAINED_HEAD_SEC` (default 180) = 1 segmento Whisper → 1 chunk **ancorado no timestamp**, texto expandido com ±`INGEST_HEAD_CONTEXT_SEC` (default **20**) de fala vizinha; depois janelas `INGEST_CHUNK_DURATION_SEC` (default **30**) com overlap `INGEST_OVERLAP_RATIO` (default **0.25**). Reingest necessária após mudar esses valores.
 - Reingestão: `pnpm --filter @choque-de-cultura-rag/backend reingest:force` (`nest build` + script compilado); ~US$ 0,006/min de áudio por episódio.
 - Respostas RAG devem incluir **vídeo + timestamp** (título, URL, momento).
 - Guardrails: agente responde **somente** sobre Choque de Cultura; off-topic → recusa educada.
 - **Onboarding:** `POST /api/onboarding/suggestions` amostra chunks do DB e gera perguntas curtas via `callJsonOutput` (`AiService.call` + JSON, não `callStructuredOutput` — DeepSeek thinking não suporta `tool_choice`); fallback em `onboarding-suggestion.builder.ts` se a IA falhar.
-- **RAG (chat):** agente LangChain via `AiService.call` + `agent.tools` (`RagAgentRunner`). Tools: **`search_archive`** (embedding + pgvector; o modelo decide query e pode buscar até `RAG_AGENT_MAX_SEARCHES` vezes) e **`submit_answer`** (off-topic + reply + `citationChunkIds`). `RagService.ask` monta Citation Cards a partir dos chunkIds válidos da sessão.
+- **RAG (chat):** agente LangChain via `AiService.call` + `agent.tools` (`RagAgentRunner`). Tools: **`search_archive`** (embedding + pgvector; o modelo decide query e pode buscar até `RAG_AGENT_MAX_SEARCHES` vezes) e **`submit_answer`**. Resultados incluem `contextText` (±`RAG_NEIGHBOR_CHUNKS` vizinhos no mesmo episódio); Citation Cards usam o mesmo contexto expandido no `quote`.
 - **`rag-unified-response.ts` / `rag-citation-filter.ts`:** legado da iteração unificada (1× `callJsonOutput`); mantidos para helpers e testes — fluxo de produção usa agente com tools desde 2026-06-05.
 - **Trecho no card:** `citations[].quote` = `chunk.text` completo do banco; `CitationCard` sem truncamento CSS (`line-clamp`).
 - Ingestão v1: episódios **mais antigos** primeiro (~5–10).

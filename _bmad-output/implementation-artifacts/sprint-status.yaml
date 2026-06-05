@@ -49,5 +49,5 @@ development_status:
   3-9-about-page-readme: done
 
 last_updated: 2026-06-05
+# Story 2.5 polish: contextText + RAG_NEIGHBOR_CHUNKS; chunking HEAD_CONTEXT + OVERLAP_RATIO
 # Story 3.9: página /sobre + README raiz
-# Story 2.5: RAG agente com search_archive tool (multi-busca)

@@ -21,7 +21,7 @@ para que **eu não precise caçar manualmente no episódio** quando a resposta j
 
 1. **AC1** — Segmentos STT com timestamps reais via OpenAI `whisper-1` + `verbose_json` + `segment`; uma passagem por episódio.
 2. **AC2** — `TranscriptSegment` persistido; `force` apaga segmentos + chunks antes de reinserir.
-3. **AC3** — Chunks via `mergeTranscriptSegmentsIntoChunks` (zona fina `INGEST_FINE_GRAINED_HEAD_SEC` + janelas `INGEST_CHUNK_DURATION_SEC` default **30s**, overlap 10–15%).
+3. **AC3** — Chunks via `mergeTranscriptSegmentsIntoChunks` (zona fina `INGEST_FINE_GRAINED_HEAD_SEC` + contexto ±`INGEST_HEAD_CONTEXT_SEC` + janelas `INGEST_CHUNK_DURATION_SEC` default **30s**, overlap **`INGEST_OVERLAP_RATIO`** default **25%**).
 4. **AC4** — Contrato `citations[]` inalterado.
 5. **AC5** — `OPENAI_API_KEY` na ingestão; chat/embeddings OpenRouter; docs atualizados.
 6. **AC6** — Áudio >24 MB fatiado com ffmpeg + offset de segmentos.
@@ -99,3 +99,4 @@ Composer
 - 2026-06-03: Story 1.6 implementada — timestamps reais na ingestão.
 - 2026-06-03: Code review Approve.
 - 2026-06-04: Docs alinhados — chunk 30s, lib 1.1.6, reingest concluída; script `check-transcript-segments.ts`.
+- 2026-06-05: Chunking — `INGEST_HEAD_CONTEXT_SEC` (±20s na zona fina) e `INGEST_OVERLAP_RATIO` (25%); reingest necessária após mudança.
