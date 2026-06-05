@@ -1,3 +1,7 @@
+/** Playlist oficial com os episódios do Choque de Cultura. */
+export const CHOQUE_EPISODES_PLAYLIST_URL =
+  'https://www.youtube.com/playlist?list=PLA2Gd9vTv5MWbT1N-RVoTO7MHkfjKkYVV';
+
 export function buildWatchUrl(youtubeVideoId: string, startSec: number): string {
   const sec = Math.max(0, Math.floor(startSec));
   return `https://www.youtube.com/watch?v=${youtubeVideoId}&t=${sec}s`;

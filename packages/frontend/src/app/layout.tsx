@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Choque RAG',
   description:
-    'Converse com o acervo do podcast Choque de Cultura — citações com vídeo e timestamp.',
+    'Converse com o acervo do Choque de Cultura — citações com vídeo e timestamp.',
 };
 
 export default function RootLayout({
