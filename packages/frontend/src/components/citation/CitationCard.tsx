@@ -25,7 +25,7 @@ export function CitationCard({ citation }: CitationCardProps) {
         <p className="mb-1.5 text-xs font-semibold text-choque-accent">
           {formatTimestamp(citation.startSec, citation.durationSec)}
         </p>
-        <p className="mb-2.5 line-clamp-3 text-[13px] leading-snug text-choque-secondary">
+        <p className="mb-2.5 whitespace-pre-wrap text-[13px] leading-relaxed text-choque-secondary">
           “{citation.quote}”
         </p>
         <a
