@@ -73,8 +73,8 @@ describe('rag-citation-filter', () => {
     expect(pickChunksByIndexes(chunks, result)[0].startSec).toBe(120);
   });
 
-  it('inclui segundo card quando resposta cita dois episódios', async () => {
-    mockCallJson.mockResolvedValue({ citationIndexes: [1] });
+  it('inclui segundo card quando IA seleciona dois trechos relevantes', async () => {
+    mockCallJson.mockResolvedValue({ citationIndexes: [1, 2] });
 
     const result = await selectCitationIndexes(
       {} as never,
@@ -99,8 +99,44 @@ describe('rag-citation-filter', () => {
     expect(mergeCitationIndexes([1], [2])).toEqual([1, 2]);
   });
 
-  it('fallback para [1] quando IA retorna vazio', async () => {
+  it('respeita lista vazia quando IA não encontra evidência', async () => {
     mockCallJson.mockResolvedValue({ citationIndexes: [] });
+
+    const result = await selectCitationIndexes(
+      {} as never,
+      'openrouter/deepseek/deepseek-v4-flash',
+      'q',
+      'r',
+      chunks,
+    );
+
+    expect(result).toEqual([]);
+  });
+
+  it('limita ao máximo de cards configurado', async () => {
+    const manyChunks = Array.from({ length: 5 }, (_, i) => ({
+      ...chunks[0],
+      id: `c${i}`,
+      startSec: i * 60,
+    }));
+    mockCallJson.mockResolvedValue({
+      citationIndexes: [1, 2, 3, 4, 5],
+    });
+
+    const result = await selectCitationIndexes(
+      {} as never,
+      'openrouter/deepseek/deepseek-v4-flash',
+      'q',
+      'r',
+      manyChunks,
+    );
+
+    expect(result).toHaveLength(3);
+    expect(result).toEqual([1, 2, 3]);
+  });
+
+  it('fallback para [1] quando chamada JSON falha', async () => {
+    mockCallJson.mockResolvedValue(null);
 
     const result = await selectCitationIndexes(
       {} as never,

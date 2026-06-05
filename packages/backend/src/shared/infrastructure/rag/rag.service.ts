@@ -1,40 +1,21 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { AIMessages, type AIModelNames } from '@luanpoppe/ai';
-import z from 'zod';
+import { AIMessages, type AICallParams, type AIModelNames } from '@luanpoppe/ai';
 import { EnvService } from '@core/env.service';
-import { callJsonOutput } from '@infrastructure/ai/ai-json-call';
-import { AiService } from '@infrastructure/ai/ai.service';
-import { ChunkRepository } from '@infrastructure/vector-store/chunk.repository';
 import type { SimilarChunkWithEpisode } from '@infrastructure/vector-store/chunk.repository';
 import { buildWatchUrl } from '@/shared/lib/youtube';
-import {
-  pickChunksByIndexes,
-  selectCitationIndexes,
-} from './rag-citation-filter';
-import { coerceChunkDistance } from './rag-distance';
-import {
-  NO_MATCH_REPLY,
-  OFF_TOPIC_CLASSIFIER_SYSTEM,
-  OFF_TOPIC_REPLY_SYSTEM,
-  RAG_SYSTEM_PROMPT,
-} from './rag-prompts';
+import { RagAgentRunner } from './rag-agent.runner';
 import type {
   ChatHistoryMessage,
   RagAskResult,
   RagCitation,
 } from './rag.types';
 
-const offTopicSchema = z.object({
-  offTopic: z.boolean(),
-});
-
 @Injectable()
 export class RagService {
   private readonly logger = new Logger(RagService.name);
 
   constructor(
-    private readonly aiService: AiService,
-    private readonly chunkRepository: ChunkRepository,
+    private readonly ragAgentRunner: RagAgentRunner,
     @Inject(EnvService) private readonly envService: EnvService,
   ) {}
 
@@ -47,82 +28,47 @@ export class RagService {
       throw new Error('Mensagem vazia');
     }
 
+    const preview =
+      trimmed.length > 80 ? `${trimmed.slice(0, 79)}…` : trimmed;
+    this.logger.log(`ask: "${preview}"`);
+
     const envs = this.envService.getEnvs();
     const chatModel = envs.CHAT_MODEL as AIModelNames;
     const trimmedHistory = this.trimHistory(history, envs.RAG_MAX_HISTORY_MESSAGES);
     const historyMessages = this.toAiMessages(trimmedHistory);
 
-    const topicCheck = await callJsonOutput(this.aiService, {
-      aiModel: chatModel,
-      systemPrompt: `${OFF_TOPIC_CLASSIFIER_SYSTEM}\n\nFormato JSON: {"offTopic": boolean}`,
-      messages: [
-        ...historyMessages,
-        AIMessages.human(trimmed),
-      ],
-      outputSchema: offTopicSchema,
-      modelConfig: { temperature: 0 },
+    const agentResult = await this.ragAgentRunner.run({
+      chatModel,
+      userMessage: trimmed,
+      historyMessages,
+      topK: envs.RAG_TOP_K,
+      maxDistance: envs.RAG_MAX_DISTANCE,
+      maxSearches: envs.RAG_AGENT_MAX_SEARCHES,
     });
 
-    if (topicCheck?.offTopic) {
-      const { text } = await this.aiService.call({
-        aiModel: chatModel,
-        systemPrompt: OFF_TOPIC_REPLY_SYSTEM,
-        messages: [
-          ...historyMessages,
-          AIMessages.human(trimmed),
-        ],
-        modelConfig: { temperature: 0.4 },
-      });
-      return { reply: text, citations: [], offTopic: true };
-    }
-
-    const embedding = await this.aiService.embedQuery(trimmed);
-    const candidates = await this.chunkRepository.searchSimilarWithEpisode(
-      embedding,
-      envs.RAG_TOP_K,
-    );
-    const relevant = candidates.filter(
-      (c) => coerceChunkDistance(c.distance) <= envs.RAG_MAX_DISTANCE,
+    this.logger.log(
+      `agent result: searches=${agentResult.searchCount} offTopic=${agentResult.offTopic ?? false} noMatch=${agentResult.noMatch ?? false} citations=${agentResult.citedChunks.length}`,
     );
 
-    if (relevant.length === 0) {
+    if (agentResult.noMatch) {
       return {
-        reply: NO_MATCH_REPLY,
+        reply: agentResult.reply,
         citations: [],
         noMatch: true,
       };
     }
 
-    const contextBlock = this.formatContextBlock(relevant);
+    if (agentResult.offTopic) {
+      return {
+        reply: agentResult.reply,
+        citations: [],
+        offTopic: true,
+      };
+    }
 
-    const { text } = await this.aiService.call({
-      aiModel: chatModel,
-      systemPrompt: `${RAG_SYSTEM_PROMPT}\n\n--- Trechos do acervo ---\n${contextBlock}`,
-      messages: [
-        ...historyMessages,
-        AIMessages.human(trimmed),
-      ],
-      modelConfig: { temperature: 0.5 },
-    });
+    const citations = this.buildCitations(agentResult.citedChunks);
 
-    const citationIndexes = await selectCitationIndexes(
-      this.aiService,
-      chatModel,
-      trimmed,
-      text,
-      relevant,
-    );
-    const citedChunks = pickChunksByIndexes(relevant, citationIndexes);
-    const citations = this.buildCitations(
-      citedChunks,
-      envs.RAG_MAX_QUOTE_CHARS,
-    );
-
-    this.logger.debug(
-      `RAG answer: ${relevant.length} chunks retrieved, ${citations.length} citations [${citationIndexes.join(',')}], best distance ${relevant[0]?.distance.toFixed(4)}`,
-    );
-
-    return { reply: text, citations };
+    return { reply: agentResult.reply, citations };
   }
 
   private trimHistory(
@@ -134,28 +80,19 @@ export class RagService {
     return history.slice(-maxMessages);
   }
 
-  private buildCitations(
-    chunks: SimilarChunkWithEpisode[],
-    maxQuoteChars: number,
-  ): RagCitation[] {
+  private buildCitations(chunks: SimilarChunkWithEpisode[]): RagCitation[] {
     const seen = new Set<string>();
     const citations: RagCitation[] = [];
     for (const chunk of chunks) {
       if (seen.has(chunk.id)) continue;
       seen.add(chunk.id);
-      citations.push(this.chunkToCitation(chunk, maxQuoteChars));
+      citations.push(this.chunkToCitation(chunk));
     }
     return citations;
   }
 
-  private chunkToCitation(
-    chunk: SimilarChunkWithEpisode,
-    maxQuoteChars: number,
-  ): RagCitation {
-    const quote =
-      chunk.text.length <= maxQuoteChars
-        ? chunk.text
-        : `${chunk.text.slice(0, maxQuoteChars - 1).trimEnd()}…`;
+  private chunkToCitation(chunk: SimilarChunkWithEpisode): RagCitation {
+    const quote = chunk.text;
 
     const citation: RagCitation = {
       episodeTitle: chunk.episodeTitle,
@@ -172,16 +109,9 @@ export class RagService {
     return citation;
   }
 
-  private formatContextBlock(chunks: SimilarChunkWithEpisode[]): string {
-    return chunks
-      .map(
-        (c, i) =>
-          `[${i + 1}] Episódio: ${c.episodeTitle} (vídeo ${c.youtubeVideoId}, ${c.startSec}s–${c.endSec}s)\n${c.text}`,
-      )
-      .join('\n\n');
-  }
-
-  private toAiMessages(history?: ChatHistoryMessage[]) {
+  private toAiMessages(
+    history?: ChatHistoryMessage[],
+  ): NonNullable<AICallParams['messages']> {
     if (!history?.length) return [];
     return history.map((item) =>
       item.role === 'user'

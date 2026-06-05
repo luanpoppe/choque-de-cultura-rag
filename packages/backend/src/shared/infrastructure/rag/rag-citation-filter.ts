@@ -3,15 +3,28 @@ import z from 'zod';
 import { callJsonOutput } from '@infrastructure/ai/ai-json-call';
 import type { AiService } from '@infrastructure/ai/ai.service';
 import type { SimilarChunkWithEpisode } from '@infrastructure/vector-store/chunk.repository';
+import { MAX_CITATION_CARDS } from './rag-unified-response';
 
-export const CITATION_FILTER_SYSTEM = `Você seleciona quais trechos numerados do podcast Choque de Cultura devem aparecer como Citation Cards na interface.
+export const CITATION_FILTER_SYSTEM = `Você é um filtro rigoroso de Citation Cards do podcast Choque de Cultura. A maioria dos trechos recuperados deve ser REJEITADA: só passam os que provam fatos específicos da resposta.
 
-Regras:
-- Inclua APENAS trechos que são evidência direta para fatos mencionados na resposta do assistente.
-- Exclua trechos que falam de outro assunto (ex.: pergunta sobre Rambo → não incluir trecho sobre IMAX).
-- Se a resposta descreve VÁRIOS momentos ou episódios distintos, inclua um índice para CADA trecho que sustenta cada momento (não omita o segundo só para economizar cards).
-- Use os índices [1], [2], etc. exatamente como fornecidos.
-- Se nenhum trecho sustentar a resposta, retorne lista vazia.`;
+Para INCLUIR um índice [N], TODOS os critérios abaixo precisam ser verdadeiros:
+1. O texto do trecho [N] contém evidência direta e verificável para uma afirmação concreta da resposta do assistente (não basta tema parecido ou mesmo episódio).
+2. Essa afirmação responde de fato à pergunta do usuário — não apenas ao universo temático do podcast.
+3. Se esse trecho fosse removido, a resposta ficaria sem suporte para aquela afirmação específica.
+
+EXCLUIR sempre:
+- Trechos tangenciais, genéricos ou só “próximos” por similaridade semântica (ex.: pergunta sobre Rambo → não incluir trecho sobre IMAX ou outro filme de ação).
+- Trechos que não mencionam nomes, eventos ou detalhes que a resposta afirmou.
+- Trechos duplicados que sustentam o mesmo fato (fique só com o mais específico).
+- Trechos incluídos só porque o episódio aparece na resposta, sem o conteúdo do trecho sustentar o que foi dito.
+- Trechos que falam de outro momento, convidado ou assunto do episódio.
+
+Quantidade:
+- Prefira 1 card; use 2–3 somente se houver afirmações distintas, cada uma com evidência em trechos diferentes.
+- Nunca inclua todos os índices “por garantia”. Na dúvida, EXCLUA.
+
+Índices: use [1], [2], etc. exatamente como fornecidos.
+Se nenhum trecho sustenta a resposta com evidência direta, retorne citationIndexes: [].`;
 
 const citationFilterSchema = z.object({
   citationIndexes: z.array(z.number().int().positive()),
@@ -98,7 +111,17 @@ export async function selectCitationIndexes(
     systemPrompt: `${CITATION_FILTER_SYSTEM}\n\nFormato JSON: {"citationIndexes": number[]}`,
     messages: [
       AIMessages.human(
-        `Pergunta do usuário:\n${question}\n\nResposta do assistente:\n${reply}\n\nTrechos recuperados:\n${formatChunksForFilter(chunks)}\n\nQuais índices devem virar Citation Cards?`,
+        [
+          'Selecione o MÍNIMO de índices cujos trechos provam a resposta. Seja conservador — na dúvida, exclua.',
+          '',
+          `Pergunta do usuário:\n${question}`,
+          '',
+          `Resposta do assistente:\n${reply}`,
+          '',
+          `Trechos recuperados (ordenados por similaridade; [1] é o mais próximo da busca, mas pode ser irrelevante):\n${formatChunksForFilter(chunks)}`,
+          '',
+          'Retorne apenas {"citationIndexes": number[]} com índices válidos ou lista vazia.',
+        ].join('\n'),
       ),
     ],
     outputSchema: citationFilterSchema,
@@ -107,17 +130,11 @@ export async function selectCitationIndexes(
 
   if (!result) return [1];
 
-  const fromAi = result.citationIndexes.filter(
-    (index) => index >= 1 && index <= chunks.length,
-  );
-  const fromReply = findCitationIndexesMentionedInReply(reply, chunks);
-  const merged = mergeCitationIndexes(
-    fromAi.length > 0 ? fromAi : [1],
-    fromReply,
-    chunks.length,
-  );
+  const fromAi = result.citationIndexes
+    .filter((index) => index >= 1 && index <= chunks.length)
+    .slice(0, MAX_CITATION_CARDS);
 
-  return merged.length > 0 ? merged : [1];
+  return fromAi;
 }
 
 export function pickChunksByIndexes(
