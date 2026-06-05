@@ -48,6 +48,8 @@ describe('IngestionPipelineService', () => {
     getEnvs: () => ({
       INGEST_FINE_GRAINED_HEAD_SEC: 180,
       INGEST_CHUNK_DURATION_SEC: 30,
+      INGEST_OVERLAP_RATIO: 0.25,
+      INGEST_HEAD_CONTEXT_SEC: 20,
     }),
   };
 
@@ -117,13 +119,12 @@ describe('IngestionPipelineService', () => {
         expect.objectContaining({
           episodeId,
           startSec: 10,
-          endSec: 41,
-          text: 'trecho um',
+          text: 'trecho um trecho dois',
         }),
         expect.objectContaining({
           episodeId,
           startSec: 40,
-          text: 'trecho dois',
+          text: 'trecho um trecho dois',
         }),
       ]),
     );

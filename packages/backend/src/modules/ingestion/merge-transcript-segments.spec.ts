@@ -26,7 +26,7 @@ describe('mergeTranscriptSegmentsIntoChunks', () => {
     }
   });
 
-  it('emits one chunk per Whisper segment in the first fineGrainedHeadSec', () => {
+  it('emits one anchored chunk per Whisper segment in fineGrainedHeadSec with neighbor context', () => {
     const early: SttSegment[] = [
       { startSec: 0, endSec: 8, text: 'Achou errado otário!' },
       { startSec: 8, endSec: 20, text: 'Continuação do trailer.' },
@@ -37,19 +37,28 @@ describe('mergeTranscriptSegmentsIntoChunks', () => {
       fineGrainedHeadSec: 180,
       chunkDurationSec: 60,
       overlapRatio: 0,
+      headContextSec: 20,
     });
-    expect(chunks[0]).toEqual({
-      startSec: 0,
-      endSec: 8,
-      text: 'Achou errado otário!',
-    });
-    expect(chunks[1]).toEqual({
-      startSec: 8,
-      endSec: 20,
-      text: 'Continuação do trailer.',
-    });
+    expect(chunks[0]?.startSec).toBe(0);
+    expect(chunks[0]?.text).toContain('Achou errado otário!');
+    expect(chunks[0]?.text).toContain('Continuação do trailer.');
+    expect(chunks[1]?.startSec).toBe(8);
+    expect(chunks[1]?.text).toContain('Achou errado otário!');
     expect(chunks.some((c) => c.text.includes('Muito depois'))).toBe(true);
     expect(chunks.length).toBeGreaterThan(2);
+  });
+
+  it('headContextSec=0 keeps only the anchor segment text', () => {
+    const early: SttSegment[] = [
+      { startSec: 0, endSec: 8, text: 'Só este.' },
+      { startSec: 8, endSec: 20, text: 'Vizinho.' },
+    ];
+    const chunks = mergeTranscriptSegmentsIntoChunks(early, {
+      fineGrainedHeadSec: 180,
+      headContextSec: 0,
+    });
+    expect(chunks[0]?.text).toBe('Só este.');
+    expect(chunks[1]?.text).toBe('Vizinho.');
   });
 
   it('uses floor/ceil for chunk boundaries', () => {

@@ -58,6 +58,21 @@ export class EnvService {
         .max(120)
         .optional()
         .default(30),
+      /** Overlap entre janelas após a zona fina (default 0.25 = 25%). */
+      INGEST_OVERLAP_RATIO: z.coerce
+        .number()
+        .min(0.1)
+        .max(0.5)
+        .optional()
+        .default(0.25),
+      /** ±N segundos de fala vizinha no texto de cada chunk da zona fina (default 20). */
+      INGEST_HEAD_CONTEXT_SEC: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .max(90)
+        .optional()
+        .default(20),
       SWAGGER_EXPOSE_INTERNAL: z
         .enum(['true', 'false'])
         .optional()
@@ -90,6 +105,14 @@ export class EnvService {
         .max(10)
         .optional()
         .default(4),
+      /** Chunks vizinhos (antes/depois) incluídos no contexto para o agente e cards. */
+      RAG_NEIGHBOR_CHUNKS: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .max(5)
+        .optional()
+        .default(2),
       CHAT_RATE_LIMIT_MAX: z.coerce
         .number()
         .int()

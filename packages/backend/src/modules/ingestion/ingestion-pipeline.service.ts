@@ -187,6 +187,8 @@ export class IngestionPipelineService {
       const chunks = mergeTranscriptSegmentsIntoChunks(sttSegments, {
         fineGrainedHeadSec: envs.INGEST_FINE_GRAINED_HEAD_SEC,
         chunkDurationSec: envs.INGEST_CHUNK_DURATION_SEC,
+        overlapRatio: envs.INGEST_OVERLAP_RATIO,
+        headContextSec: envs.INGEST_HEAD_CONTEXT_SEC,
       });
       if (chunks.length === 0) {
         throw new Error('Transcription produced no chunkable content');
@@ -195,7 +197,7 @@ export class IngestionPipelineService {
       this.jobLog(
         jobId,
         videoId,
-        `chunking ok — ${chunks.length} chunks (fineHead=${envs.INGEST_FINE_GRAINED_HEAD_SEC}s window=${envs.INGEST_CHUNK_DURATION_SEC}s)`,
+        `chunking ok — ${chunks.length} chunks (fineHead=${envs.INGEST_FINE_GRAINED_HEAD_SEC}s context±=${envs.INGEST_HEAD_CONTEXT_SEC}s window=${envs.INGEST_CHUNK_DURATION_SEC}s overlap=${envs.INGEST_OVERLAP_RATIO})`,
       );
 
       this.jobLog(jobId, videoId, `embedding ${chunks.length} chunks…`);
