@@ -43,11 +43,28 @@ model Episode {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   ingestionJobId String?       @map("ingestion_job_id") @db.Uuid
-  ingestionJob   IngestionJob? @relation(fields: [ingestionJobId], references: [id], onDelete: SetNull)
-  chunks         Chunk[]
+  ingestionJob       IngestionJob?       @relation(fields: [ingestionJobId], references: [id], onDelete: SetNull)
+  chunks             Chunk[]
+  transcriptSegments TranscriptSegment[]
 
   @@index([ingestionJobId])
   @@map("episodes")
+}
+
+/// Segmento STT com timestamps reais (Whisper verbose_json).
+model TranscriptSegment {
+  id        String   @id @default(uuid()) @db.Uuid
+  episodeId String   @map("episode_id") @db.Uuid
+  episode   Episode  @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  ord       Int
+  startSec  Float    @map("start_sec")
+  endSec    Float    @map("end_sec")
+  text      String
+  source    String   @default("whisper")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([episodeId])
+  @@map("transcript_segments")
 }
 
 /// Trecho transcrito com embedding para busca semântica (pgvector).

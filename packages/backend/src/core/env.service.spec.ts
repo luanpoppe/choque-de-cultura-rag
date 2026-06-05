@@ -31,6 +31,7 @@ describe('EnvService', () => {
     expect(envs.OPENROUTER_API_KEY).toBe('or-test');
     expect(envs.EMBEDDING_MODEL).toBe('openai/text-embedding-3-small');
     expect(envs.WHISPER_MODEL).toBe('openai/whisper-1');
+    expect(envs.OPENAI_WHISPER_MODEL).toBe('whisper-1');
   });
 
   it('should require OPENROUTER_API_KEY', () => {

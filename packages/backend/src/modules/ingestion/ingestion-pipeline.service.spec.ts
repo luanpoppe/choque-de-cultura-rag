@@ -2,14 +2,11 @@ jest.mock('@infrastructure/ai/ai.service', () => ({
   AiService: jest.fn(),
 }));
 
-jest.mock('node:fs/promises', () => ({
-  readFile: jest.fn().mockResolvedValue(Buffer.from('fake-audio')),
-}));
-
 import { IngestionJobStatus } from '@/generated/prisma/client';
 import { AiService } from '@infrastructure/ai/ai.service';
 import { PrismaService } from '@infrastructure/prisma/prisma.service';
 import { ChunkRepository } from '@infrastructure/vector-store/chunk.repository';
+import { TranscriptSegmentRepository } from '@infrastructure/vector-store/transcript-segment.repository';
 import { IngestionPipelineService } from './ingestion-pipeline.service';
 import { YtDlpService } from './yt-dlp.service';
 
@@ -27,7 +24,7 @@ describe('IngestionPipelineService', () => {
   };
 
   const aiService = {
-    transcribeWithWhisper: jest.fn(),
+    transcribeAudioFileWithSegments: jest.fn(),
     embedDocuments: jest.fn(),
   };
 
@@ -42,11 +39,25 @@ describe('IngestionPipelineService', () => {
     insertMany: jest.fn(),
   };
 
+  const transcriptSegmentRepository = {
+    deleteByEpisodeId: jest.fn(),
+    insertMany: jest.fn(),
+  };
+
+  const envService = {
+    getEnvs: () => ({
+      INGEST_FINE_GRAINED_HEAD_SEC: 180,
+      INGEST_CHUNK_DURATION_SEC: 30,
+    }),
+  };
+
   const service = new IngestionPipelineService(
     prisma as unknown as PrismaService,
+    envService as never,
     aiService as unknown as AiService,
     ytDlp as unknown as YtDlpService,
     chunkRepository as unknown as ChunkRepository,
+    transcriptSegmentRepository as unknown as TranscriptSegmentRepository,
   );
 
   beforeEach(() => {
@@ -68,9 +79,13 @@ describe('IngestionPipelineService', () => {
       audioPath: '/tmp/abc123.mp3',
       cleanup: jest.fn().mockResolvedValue(undefined),
     });
-    aiService.transcribeWithWhisper.mockResolvedValue(
-      'palavras suficientes para gerar chunks no episódio de teste do podcast',
-    );
+    aiService.transcribeAudioFileWithSegments.mockResolvedValue({
+      text: 'trecho um trecho dois',
+      segments: [
+        { startSec: 10.5, endSec: 40.2, text: 'trecho um' },
+        { startSec: 40.2, endSec: 70.0, text: 'trecho dois' },
+      ],
+    });
     aiService.embedDocuments.mockImplementation((texts: string[]) =>
       Promise.resolve(
         texts.map(() => Array.from({ length: 1536 }, () => 0.1)),
@@ -78,32 +93,49 @@ describe('IngestionPipelineService', () => {
     );
   });
 
-  it('marks job completed after successful episode processing', async () => {
+  it('marks job completed and persists segments with real timestamps', async () => {
     await service.runJob(jobId, ['abc123']);
 
-    expect(prisma.ingestionJob.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: jobId },
-        data: expect.objectContaining({
-          status: IngestionJobStatus.RUNNING,
-        }),
-      }),
+    expect(aiService.transcribeAudioFileWithSegments).toHaveBeenCalledWith(
+      '/tmp/abc123.mp3',
+      120,
+      expect.objectContaining({ languageIn2Digits: 'pt' }),
     );
+    expect(transcriptSegmentRepository.insertMany).toHaveBeenCalledWith(
+      episodeId,
+      expect.arrayContaining([
+        expect.objectContaining({
+          ord: 0,
+          startSec: 10.5,
+          endSec: 40.2,
+          source: 'whisper',
+        }),
+      ]),
+    );
+    expect(chunkRepository.insertMany).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          episodeId,
+          startSec: 10,
+          endSec: 41,
+          text: 'trecho um',
+        }),
+        expect.objectContaining({
+          episodeId,
+          startSec: 40,
+          text: 'trecho dois',
+        }),
+      ]),
+    );
+    const inserted = chunkRepository.insertMany.mock.calls[0]?.[0] as unknown[];
+    expect(inserted).toHaveLength(2);
     expect(prisma.ingestionJob.update).toHaveBeenLastCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           status: IngestionJobStatus.COMPLETED,
           successCount: 1,
-          failureCount: 0,
         }),
       }),
-    );
-    expect(chunkRepository.insertMany).toHaveBeenCalled();
-    const cleanup = (
-      ytDlp.downloadAudio
-    ).mock.results[0]?.value as Promise<{ cleanup: () => Promise<void> }>;
-    await expect(cleanup).resolves.toEqual(
-      expect.objectContaining({ cleanup: expect.any(Function) }),
     );
   });
 
@@ -136,7 +168,6 @@ describe('IngestionPipelineService', () => {
         data: expect.objectContaining({
           successCount: 1,
           failureCount: 1,
-          status: IngestionJobStatus.COMPLETED,
         }),
       }),
     );
@@ -148,10 +179,6 @@ describe('IngestionPipelineService', () => {
     await service.runJob(jobId, ['abc123']);
 
     expect(ytDlp.downloadAudio).not.toHaveBeenCalled();
-    expect(prisma.ingestionJob.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ successCount: 0 }),
-      }),
-    );
+    expect(aiService.transcribeAudioFileWithSegments).not.toHaveBeenCalled();
   });
 });

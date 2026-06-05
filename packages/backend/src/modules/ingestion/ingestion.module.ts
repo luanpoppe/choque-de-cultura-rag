@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CoreModule } from '@core/core.module';
 import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 import { IngestSecretGuard } from '@infrastructure/guards/ingest-secret.guard';
 import { IngestionController } from './ingestion.controller';
@@ -7,7 +8,7 @@ import { IngestionService } from './ingestion.service';
 import { YtDlpService } from './yt-dlp.service';
 
 @Module({
-  imports: [InfrastructureModule],
+  imports: [CoreModule, InfrastructureModule],
   controllers: [IngestionController],
   providers: [
     IngestionPipelineService,

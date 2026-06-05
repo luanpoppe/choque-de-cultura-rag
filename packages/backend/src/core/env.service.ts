@@ -16,6 +16,13 @@ export class EnvService {
         ),
       PORT: z.coerce.number().optional().default(3000),
       OPENROUTER_API_KEY: z.string().min(1),
+      /** STT com segmentos na ingestão; opcional no boot, obrigatória ao transcrever. */
+      OPENAI_API_KEY: z.string().min(1).optional(),
+      OPENAI_WHISPER_MODEL: z
+        .string()
+        .min(1)
+        .optional()
+        .default('whisper-1'),
       EMBEDDING_MODEL: z
         .string()
         .min(1)
@@ -32,6 +39,22 @@ export class EnvService {
       INGEST_SECRET: z.string().min(1),
       CHOQUE_YOUTUBE_CHANNEL_URL: z.string().url().optional(),
       INGEST_DEFAULT_LIMIT: z.coerce.number().int().min(1).max(50).optional().default(10),
+      /** Início do vídeo: cada segmento Whisper vira um chunk (default 180s). 0 = só janelas. */
+      INGEST_FINE_GRAINED_HEAD_SEC: z.coerce
+        .number()
+        .int()
+        .min(0)
+        .max(600)
+        .optional()
+        .default(180),
+      /** Duração alvo das janelas de chunk após a zona fina (default 30s). */
+      INGEST_CHUNK_DURATION_SEC: z.coerce
+        .number()
+        .int()
+        .min(15)
+        .max(120)
+        .optional()
+        .default(30),
       SWAGGER_EXPOSE_INTERNAL: z
         .enum(['true', 'false'])
         .optional()
@@ -41,7 +64,7 @@ export class EnvService {
         .string()
         .min(1)
         .optional()
-        .default('openrouter/openai/gpt-4o-mini'),
+        .default('openrouter/deepseek/deepseek-v4-flash'),
       RAG_TOP_K: z.coerce.number().int().min(1).max(20).optional().default(6),
       RAG_MAX_DISTANCE: z.coerce
         .number()

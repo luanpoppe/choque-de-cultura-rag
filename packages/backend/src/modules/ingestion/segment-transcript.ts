@@ -9,7 +9,8 @@ const DEFAULT_OVERLAP_RATIO = 0.125;
 
 /**
  * Divide transcrição em janelas temporais ~60s com overlap 10–15%.
- * Timestamps são proporcionais à duração do vídeo (Whisper retorna texto único).
+ * Timestamps são proporcionais à duração do vídeo (fallback legado).
+ * Pipeline de ingestão usa mergeTranscriptSegmentsIntoChunks com segmentos STT reais (story 1.6).
  */
 export function segmentTranscriptIntoChunks(
   transcript: string,
